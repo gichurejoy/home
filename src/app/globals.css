@@ -1,26 +1,366 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  /* Named semantic aliases */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --font-sans: var(--font-public-sans), 'Nunito', ui-sans-serif, system-ui, sans-serif;
+  
+  --shadow-card: 0px 0px 35px 0px rgba(154, 161, 171, 0.15);
 }
 
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #f4f6fb;
+    --foreground: #313a46;
+    --card: #ffffff;
+    --card-foreground: #313a46;
+    --popover: #ffffff;
+    --popover-foreground: #313a46;
+    --primary: #604ae3;
+    --primary-foreground: #ffffff;
+    --secondary: #f1f3f6;
+    --secondary-foreground: #313a46;
+    --muted: #f8f9fa;
+    --muted-foreground: #98a6ad;
+    --accent: #f8f9fa;
+    --accent-foreground: #313a46;
+    --destructive: #ff5b5b;
+    --destructive-foreground: #ffffff;
+    --success: #0acf97;
+    --warning: #f1b53d;
+    --danger: #ff5b5b;
+    --info: #39afd1;
+    --border: #eef2f7;
+    --input: #eef2f7;
+    --ring: #604ae3;
+    --radius: 0.375rem;
+  }
+ 
+  .dark {
+    --background: #101726;
+    --foreground: #f3f4f6;
+    --card: #1b2332;
+    --card-foreground: #f3f4f6;
+    --popover: #1b2332;
+    --popover-foreground: #f3f4f6;
+    --primary: #604ae3;
+    --primary-foreground: #ffffff;
+    --secondary: #252d3c;
+    --secondary-foreground: #f3f4f6;
+    --muted: #252d3c;
+    --muted-foreground: #94a3b8;
+    --accent: #252d3c;
+    --accent-foreground: #f3f4f6;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --success: #10b981;
+    --warning: #f1b53d;
+    --danger: #ef4444;
+    --info: #39afd1;
+    --border: #2b3547;
+    --input: #2b3547;
+    --ring: #604ae3;
+    --shadow-card: 0px 0px 35px 0px rgba(0, 0, 0, 0.25);
+  }
+}
+ 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Sidebar Specific theme variables */
+:root {
+  --sidebar-bg: #313a46;
+  --sidebar-hover: #3d4654;
+  --sidebar-text: #8391a2;
+  --sidebar-text-hover: #ffffff;
+  --sidebar-active: #604ae3;
 }
+
+.dark {
+  --sidebar-bg: #1b2332;
+  --sidebar-hover: #252d3c;
+}
+
+/* Utility classes for soft color backgrounds (matching Lahomes) */
+.bg-soft-primary { background-color: rgba(96, 74, 227, 0.15); }
+.bg-soft-success { background-color: rgba(10, 207, 151, 0.15); }
+.bg-soft-danger  { background-color: rgba(255, 91, 91, 0.15); }
+.bg-soft-warning { background-color: rgba(241, 181, 61, 0.15); }
+.bg-soft-info    { background-color: rgba(57, 175, 209, 0.15); }
+
+.text-primary   { color: #604ae3; }
+.text-success   { color: #0acf97; }
+.text-danger    { color: #ff5b5b; }
+.text-warning   { color: #f1b53d; }
+.text-info      { color: #39afd1; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+
+/* Mini spark chart compact tooltips */
+.mini-spark-chart .apexcharts-tooltip {
+  font-size: 11px !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+}
+.mini-spark-chart .apexcharts-tooltip .apexcharts-tooltip-series-group {
+  padding: 2px 4px !important;
+}
+.mini-spark-chart .apexcharts-tooltip-y-group {
+  padding: 1px 0 !important;
+}
+
+/* ── Custom Theme Settings Overrides ────────────────────────── */
+
+/* Topbar Dark Scheme Override */
+.topbar-dark {
+  background-color: #313a46 !important;
+  color: #ffffff !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+.topbar-dark input#topbar-search {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+.topbar-dark input#topbar-search::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+.topbar-dark .text-muted-foreground {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+.topbar-dark button:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+.topbar-dark #topbar-user-menu:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+.topbar-dark #topbar-user-menu {
+  color: #ffffff !important;
+}
+
+/* Sidebar Light Scheme Override (Only active in light theme mode) */
+:root:not(.dark) .sidebar-light {
+  background-color: #ffffff !important;
+  border-right: 1px solid #eef2f7 !important;
+}
+:root:not(.dark) .sidebar-light .border-b,
+:root:not(.dark) .sidebar-light .border-t,
+:root:not(.dark) .sidebar-light .border-white\/5,
+:root:not(.dark) .sidebar-light .border-white\/10 {
+  border-color: #f1f3f6 !important;
+}
+:root:not(.dark) .sidebar-light .text-white {
+  color: #313a46 !important;
+}
+:root:not(.dark) .sidebar-light .text-white\/50 {
+  color: #98a6ad !important;
+}
+:root:not(.dark) .sidebar-light .text-white\/60,
+:root:not(.dark) .sidebar-light .text-\[var\(--sidebar-text\)\] {
+  color: #6c757d !important;
+}
+:root:not(.dark) .sidebar-light a:hover,
+:root:not(.dark) .sidebar-light button:hover {
+  background-color: #f8f9fa !important;
+  color: #604ae3 !important;
+}
+:root:not(.dark) .sidebar-light .bg-white\/5 {
+  background-color: #f8f9fa !important;
+}
+:root:not(.dark) .sidebar-light .bg-\[var\(--sidebar-active\)\]\/20 {
+  background-color: rgba(96, 74, 227, 0.08) !important;
+}
+
+/* Sidebar Size Overrides */
+
+/* Condensed Layout */
+.sidebar-condensed .sidebar-wrapper {
+  width: 70px !important;
+}
+.sidebar-condensed .sidebar-wrapper div.border-b {
+  justify-content: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+.sidebar-condensed .sidebar-text-label,
+.sidebar-condensed .sidebar-arrow,
+.sidebar-condensed .sidebar-submenu,
+.sidebar-condensed .sidebar-section-title,
+.sidebar-condensed .sidebar-bottom-user,
+.sidebar-condensed .sidebar-logo-text {
+  display: none !important;
+}
+.sidebar-condensed .sidebar-link-item {
+  justify-content: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Hidden Layout */
+.sidebar-hidden .sidebar-wrapper {
+  display: none !important;
+}
+
+/* Small Hover Layout */
+@media (min-width: 1280px) {
+  .sidebar-sm-hover .sidebar-wrapper {
+    position: fixed !important;
+    z-index: 45 !important;
+    width: 70px !important;
+    transition: width 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+  .sidebar-sm-hover .sidebar-wrapper:hover {
+    width: 240px !important;
+    box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15) !important;
+  }
+  .sidebar-sm-hover .sidebar-wrapper div.border-b {
+    transition: padding 0.15s ease-in-out, justify-content 0.15s ease-in-out;
+  }
+  .sidebar-sm-hover .sidebar-wrapper:not(:hover) div.border-b {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .sidebar-sm-hover .sidebar-wrapper:not(:hover) .sidebar-text-label,
+  .sidebar-sm-hover .sidebar-wrapper:not(:hover) .sidebar-arrow,
+  .sidebar-sm-hover .sidebar-wrapper:not(:hover) .sidebar-submenu,
+  .sidebar-sm-hover .sidebar-wrapper:not(:hover) .sidebar-section-title,
+  .sidebar-sm-hover .sidebar-wrapper:not(:hover) .sidebar-bottom-user,
+  .sidebar-sm-hover .sidebar-wrapper:not(:hover) .sidebar-logo-text {
+    display: none !important;
+  }
+  .sidebar-sm-hover .sidebar-wrapper:not(:hover) .sidebar-link-item {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  
+  /* Shift content for fixed sidebar */
+  .sidebar-sm-hover .layout-content-wrapper {
+    margin-left: 70px !important;
+    transition: margin-left 0.15s ease-in-out;
+  }
+}
+
+/* Small Hover Active Layout */
+@media (min-width: 1280px) {
+  .sidebar-sm-hover-active .sidebar-wrapper {
+    position: fixed !important;
+    z-index: 45 !important;
+    width: 240px !important;
+    transition: width 0.15s ease-in-out;
+  }
+  
+  /* Shift content for fixed sidebar */
+  .sidebar-sm-hover-active .layout-content-wrapper {
+    margin-left: 240px !important;
+    transition: margin-left 0.15s ease-in-out;
+  }
+}
+
+/* ── Dark Theme High-Fidelity Adjustments ───────────────────── */
+
+/* Override light-gray card shadows to dark shadows in dark mode */
+.dark [class*="shadow-[0_0_35px_rgba(154"] {
+  box-shadow: 0px 0px 35px 0px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Force dark backgrounds in dark mode to prevent any white layout gaps */
+.dark body,
+.dark .bg-background {
+  background-color: #101726 !important;
+}
+
+/* Force dark header/topbar in dark mode */
+.dark header,
+.dark .topbar-wrapper,
+.dark header.bg-card {
+  background-color: #1b2332 !important;
+  border-bottom-color: #2b3547 !important;
+}
+
+/* Force dark sidebar in dark mode even if light menu setting is selected */
+.dark .sidebar-wrapper,
+.dark .sidebar-light {
+  background-color: #1b2332 !important;
+  border-right-color: #2b3547 !important;
+}
+
+.dark .sidebar-light .text-white,
+.dark .sidebar-light .sidebar-logo-text,
+.dark .sidebar-light .text-\[var\(--sidebar-text\)\] {
+  color: #8391a2 !important;
+}
+
+.dark .sidebar-light .sidebar-link-item.text-white {
+  color: #ffffff !important;
+}
+
+.dark .sidebar-light a:hover,
+.dark .sidebar-light button:hover {
+  background-color: #252d3c !important;
+  color: #ffffff !important;
+}
+
+/* Active item parent background in dark sidebar */
+.sidebar-wrapper:not(.sidebar-light) .bg-\[var\(--sidebar-active\)\]\/20,
+.dark .sidebar-light .bg-\[var\(--sidebar-active\)\]\/20 {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Active item parent icon and arrow color in dark sidebar */
+.sidebar-wrapper .sidebar-link-item.text-white i {
+  color: #ffffff !important;
+}
+
+
