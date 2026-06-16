@@ -2,13 +2,91 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { agents as initialAgents, Agent } from "@/data/mockAgents";
+import { useToastStore, toast } from "@/store/useToastStore";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
+// --- Charts Subcomponents ---
+const DonutPortfolio = () => {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setTimeout(() => setMounted(true), 0);
+  }, []);
+
+  if (!mounted) {
+    return <div className="h-[120px] w-[120px] rounded-full bg-muted/20 animate-pulse mx-auto" />;
+  }
+
+  const isDark = theme === "dark";
+  const options: ApexCharts.ApexOptions = {
+    chart: { type: "donut", height: 120, background: "transparent" },
+    series: [80, 40, 30],
+    labels: ["Vacant", "Occupied", "Unlisted"],
+    colors: ["#604ae3", "#ffb12f", "#0acf97"],
+    legend: { show: false },
+    stroke: { width: 0 },
+    plotOptions: {
+      pie: {
+        donut: {
+          size: "72%",
+          labels: {
+            show: false,
+            total: { showAlways: true, show: true }
+          }
+        }
+      }
+    },
+    dataLabels: { enabled: false },
+    tooltip: { theme: isDark ? "dark" : "light" }
+  };
+
+  return <Chart options={options} series={[80, 40, 30]} type="donut" height={120} width="100%" />;
+};
+
+const SealSparkline = () => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setTimeout(() => setMounted(true), 0);
+  }, []);
+
+  if (!mounted) {
+    return <div className="h-[60px] w-full bg-white/10 rounded animate-pulse" />;
+  }
+
+  const options: ApexCharts.ApexOptions = {
+    chart: {
+      type: "area",
+      height: 60,
+      sparkline: { enabled: true },
+      background: "transparent",
+      parentHeightOffset: 0
+    },
+    stroke: { curve: "smooth", width: 2 },
+    fill: {
+      type: "gradient",
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.45,
+        opacityTo: 0.05
+      }
+    },
+    colors: ["#ffffff"],
+    tooltip: { enabled: false },
+    grid: { padding: { top: 5, bottom: 5 } }
+  };
+
+  const series = [{ name: "Properties", data: [35, 45, 30, 60, 50, 75, 65, 95, 80, 110] }];
+
+  return <Chart options={options} series={series} type="area" height={60} width="100%" />;
+};
+
 export default function AgentGrid() {
+  const confirm = useToastStore((state) => state.confirm);
   const [agents, setAgents] = useState<Agent[]>(initialAgents);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("All");
@@ -49,82 +127,18 @@ export default function AgentGrid() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this agent?")) {
+  const handleRemoveAgent = async (id: string) => {
+    const ok = await confirm({
+      title: "Remove Agent Profile",
+      message: "Are you sure you want to permanently delete this agent profile from the directory?",
+      confirmText: "Delete Profile",
+      cancelText: "Cancel",
+    });
+    if (ok) {
       setAgents(agents.filter((a) => a.id !== id));
       setActiveDropdownCard(null);
+      toast.success("Agent removed successfully.");
     }
-  };
-
-  // --- Charts Subcomponents ---
-  const DonutPortfolio = () => {
-    const { theme } = useTheme();
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
-
-    if (!mounted) {
-      return <div className="h-[120px] w-[120px] rounded-full bg-muted/20 animate-pulse mx-auto" />;
-    }
-
-    const isDark = theme === "dark";
-    const options: ApexCharts.ApexOptions = {
-      chart: { type: "donut", height: 120, background: "transparent" },
-      series: [80, 40, 30],
-      labels: ["Vacant", "Occupied", "Unlisted"],
-      colors: ["#604ae3", "#ffb12f", "#0acf97"],
-      legend: { show: false },
-      stroke: { width: 0 },
-      plotOptions: {
-        pie: {
-          donut: {
-            size: "72%",
-            labels: {
-              show: false,
-              total: { showAlways: true, show: true }
-            }
-          }
-        }
-      },
-      dataLabels: { enabled: false },
-      tooltip: { theme: isDark ? "dark" : "light" }
-    };
-
-    return <Chart options={options} series={[80, 40, 30]} type="donut" height={120} width="100%" />;
-  };
-
-  const SealSparkline = () => {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
-
-    if (!mounted) {
-      return <div className="h-[60px] w-full bg-white/10 rounded animate-pulse" />;
-    }
-
-    const options: ApexCharts.ApexOptions = {
-      chart: {
-        type: "area",
-        height: 60,
-        sparkline: { enabled: true },
-        background: "transparent",
-        parentHeightOffset: 0
-      },
-      stroke: { curve: "smooth", width: 2 },
-      fill: {
-        type: "gradient",
-        gradient: {
-          shadeIntensity: 1,
-          opacityFrom: 0.45,
-          opacityTo: 0.05
-        }
-      },
-      colors: ["#ffffff"],
-      tooltip: { enabled: false },
-      grid: { padding: { top: 5, bottom: 5 } }
-    };
-
-    const series = [{ name: "Properties", data: [35, 45, 30, 60, 50, 75, 65, 95, 80, 110] }];
-
-    return <Chart options={options} series={series} type="area" height={60} width="100%" />;
   };
 
   return (
@@ -132,16 +146,10 @@ export default function AgentGrid() {
       {/* ── Breadcrumb & Title ─────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
+          <Breadcrumb />
           <h1 className="text-[20px] font-bold text-foreground">Agent Grid</h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">Real Estate Agent Dashboard View</p>
         </div>
-        <ol className="flex items-center text-[13px] text-muted-foreground">
-          <li>
-            <a href="/" className="hover:text-primary transition-colors">Real Estate</a>
-          </li>
-          <li className="mx-1 text-muted-foreground/60">&rsaquo;</li>
-          <li className="text-primary font-medium">Agent Grid</li>
-        </ol>
       </div>
 
       {/* ── Top Overview Widgets Row ─────────────────────────────── */}
@@ -358,7 +366,7 @@ export default function AgentGrid() {
                             Edit Agent
                           </Link>
                           <button
-                            onClick={() => handleDelete(agent.id)}
+                            onClick={() => handleRemoveAgent(agent.id)}
                             className="w-full text-left text-[#ff5b5b] block px-3 py-1.5 hover:bg-[#ff5b5b]/10 font-semibold"
                           >
                             Delete

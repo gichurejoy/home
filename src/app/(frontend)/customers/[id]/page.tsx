@@ -6,6 +6,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import CustomerCarousel from "./CustomerCarousel";
 import { WeeklyInquiryChart, OwnPropertyChart } from "./CustomerDetailCharts";
+import { EntityNotesCard } from "@/components/ui/EntityNotesCard";
+import { DocumentManager } from "@/components/ui/DocumentManager";
 
 export default function CustomerDetails({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -495,6 +497,8 @@ export default function CustomerDetails({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
+          <EntityNotesCard entityId={customer.id} />
+          <DocumentManager entityId={customer.id} />
         </div>
 
       </div>

@@ -25,7 +25,7 @@ export function ThemeSettings() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   // Dynamically overwrite root theme color variables
@@ -172,7 +172,7 @@ export function ThemeSettings() {
                     name="sidebar-size"
                     className="text-primary border-border focus:ring-primary h-4 w-4"
                     checked={sidebarSize === size.key}
-                    onChange={() => setSidebarSize(size.key as any)}
+                    onChange={() => setSidebarSize(size.key as typeof sidebarSize)}
                   />
                   <span className={sidebarSize === size.key ? "font-bold text-foreground" : ""}>{size.label}</span>
                 </label>

@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { mockContacts, mockGroups, ChatContact, ChatGroup, Message } from "@/data/mockMessages";
+import { toast } from "@/store/useToastStore";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import Link from "next/link";
 
 export default function ChatsPage() {
@@ -80,16 +82,10 @@ export default function ChatsPage() {
       {/* ── Breadcrumb & Title ─────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
         <div>
+          <Breadcrumb />
           <h1 className="text-[20px] font-bold text-foreground">Messages</h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">Communicate with customers, agents, and staff members</p>
         </div>
-        <ol className="flex items-center text-[13px] text-muted-foreground">
-          <li>
-            <Link href="/" className="hover:text-primary transition-colors">Dashboard</Link>
-          </li>
-          <li className="mx-1 text-muted-foreground/60">&rsaquo;</li>
-          <li className="text-primary font-medium">Chats</li>
-        </ol>
       </div>
 
       {/* ── Main Chat Interface Window ────────────────────────────── */}
@@ -254,10 +250,10 @@ export default function ChatsPage() {
                 <div className="flex items-center gap-1">
                   {!isGroup && (
                     <>
-                      <button onClick={() => alert("Starting voice call...")} className="h-8 w-8 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors" title="Voice Call">
+                      <button type="button" onClick={() => toast.success(`Starting voice call with ${activeContact?.name}...`)} className="h-8 w-8 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors" title="Voice Call">
                         <i className="ri-phone-line text-[16px]" />
                       </button>
-                      <button onClick={() => alert("Starting video call...")} className="h-8 w-8 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors" title="Video Call">
+                      <button type="button" onClick={() => toast.success(`Starting video call with ${activeContact?.name}...`)} className="h-8 w-8 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors" title="Video Call">
                         <i className="ri-vidicon-line text-[16px]" />
                       </button>
                     </>
@@ -328,7 +324,7 @@ export default function ChatsPage() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => alert("Files upload placeholder")}
+                    onClick={() => toast.info("File upload menu is currently a simulation placeholder.")}
                     className="h-9 w-9 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center shrink-0 transition-colors"
                   >
                     <i className="ri-attachment-line text-[18px]" />

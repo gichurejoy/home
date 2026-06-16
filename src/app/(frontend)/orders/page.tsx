@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { mockOrders, Order } from "@/data/mockOrders";
-import Link from "next/link";
+import { useToastStore, toast } from "@/store/useToastStore";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { TableSkeleton } from "@/components/ui/Skeleton";
+import { exportToCSV } from "@/lib/exportUtils";
+import { ShoppingCart } from "lucide-react";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>(mockOrders);
@@ -10,7 +15,19 @@ export default function OrdersPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("All");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
   const itemsPerPage = 6;
+
+  const confirm = useToastStore((state) => state.confirm);
+  const prompt = useToastStore((state) => state.prompt);
+
+  // Simulate premium skeleton loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Search and filter logic
   const filteredOrders = useMemo(() => {
@@ -58,26 +75,139 @@ export default function OrdersPage() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this order?")) {
+  const handleDelete = async (id: string) => {
+    const ok = await confirm({
+      title: "Delete Order",
+      message: "Are you sure you want to delete this order? This action cannot be undone.",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+    });
+    if (ok) {
       setOrders(orders.filter((o) => o.id !== id));
       setSelectedRows((prev) => prev.filter((rowId) => rowId !== id));
+      toast.success("Order deleted successfully.");
     }
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedRows.length === 0) return;
-    if (confirm(`Are you sure you want to delete the ${selectedRows.length} selected orders?`)) {
+    const ok = await confirm({
+      title: "Delete Multiple Orders",
+      message: `Are you sure you want to delete the ${selectedRows.length} selected orders?`,
+      confirmText: `Delete ${selectedRows.length} Orders`,
+      cancelText: "Cancel",
+    });
+    if (ok) {
       setOrders(orders.filter((o) => !selectedRows.includes(o.id)));
       setSelectedRows([]);
+      toast.success("Selected orders deleted successfully.");
     }
+  };
+
+  const handleExport = () => {
+    const headers = [
+      { key: "id" as const, label: "Order ID" },
+      { key: "name" as const, label: "Customer Name" },
+      { key: "date" as const, label: "Date" },
+      { key: "phone" as const, label: "Phone" },
+      { key: "propertyType" as const, label: "Property Type" },
+      { key: "amount" as const, label: "Amount" },
+      { key: "properties" as const, label: "Properties" },
+      { key: "status" as const, label: "Status" },
+    ];
+    const success = exportToCSV<any>(filteredOrders, headers, "orders");
+    if (success) {
+      toast.success("CSV file downloaded successfully.");
+    } else {
+      toast.error("Failed to export data.");
+    }
+  };
+
+  const handleViewDetails = (order: Order) => {
+    confirm({
+      title: `Order Details: ${order.id}`,
+      message: `Customer: ${order.name}\nDate: ${order.date}\nContact: ${order.phone}\nProperty Type: ${order.propertyType}\nAmount: ${formatPrice(order.amount)}\nAddress: ${order.properties}\nStatus: ${order.status}`,
+      confirmText: "Close",
+      cancelText: "",
+    });
+  };
+
+  const handleEditStatus = async (order: Order) => {
+    const newStatus = await prompt({
+      title: "Edit Order Status",
+      message: "Change status (Paid/Pending/Unpaid):",
+      defaultValue: order.status,
+      placeholder: "Paid, Pending, or Unpaid",
+    });
+
+    if (newStatus === null) return; // User cancelled
+
+    const validStatuses = ["Paid", "Pending", "Unpaid"];
+    const normalizedStatus = validStatuses.find(
+      (s) => s.toLowerCase() === newStatus.trim().toLowerCase()
+    );
+
+    if (normalizedStatus) {
+      setOrders(orders.map((o) => (o.id === order.id ? { ...o, status: normalizedStatus as Order['status'] } : o)));
+      toast.success(`Order status updated to ${normalizedStatus}.`);
+    } else {
+      toast.error("Invalid status. Please enter Paid, Pending, or Unpaid.");
+    }
+  };
+
+  const handleNewOrder = async () => {
+    const name = await prompt({
+      title: "New Order - Customer Name",
+      message: "Enter the customer name for the new order:",
+      placeholder: "e.g. John Doe",
+    });
+    if (!name) return;
+
+    const propType = await prompt({
+      title: "New Order - Property Type",
+      message: "Enter the property type (Residential/Commercial/Apartment/Industrial):",
+      defaultValue: "Residential",
+      placeholder: "Residential",
+    });
+    if (!propType) return;
+
+    const amountStr = await prompt({
+      title: "New Order - Amount ($)",
+      message: "Enter the order amount in dollars:",
+      defaultValue: "1500000",
+      placeholder: "1500000",
+    });
+    if (!amountStr) return;
+    const amount = parseFloat(amountStr) || 0;
+
+    const props = await prompt({
+      title: "New Order - Address",
+      message: "Enter the property address:",
+      defaultValue: "123 Main St",
+      placeholder: "123 Main St",
+    });
+    if (!props) return;
+
+    const newOrder: Order = {
+      id: `ORD-0${orders.length + 1}`,
+      name,
+      avatar: `/assets/images/users/avatar-${(orders.length % 9) + 2}.jpg`,
+      date: new Date().toLocaleDateString("en-GB"),
+      phone: "+231 00-0000000",
+      propertyType: propType,
+      amount,
+      properties: props,
+      status: "Pending",
+    };
+    setOrders([newOrder, ...orders]);
+    toast.success("New order created successfully.");
   };
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(value);
   };
 
@@ -86,16 +216,12 @@ export default function OrdersPage() {
       {/* ── Breadcrumb & Title ─────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
+          <Breadcrumb />
           <h1 className="text-[20px] font-bold text-foreground">Orders</h1>
-          <p className="text-[13px] text-muted-foreground mt-0.5">Manage and track property orders and purchase requests</p>
+          <p className="text-[13px] text-muted-foreground mt-0.5">
+            Manage and track property orders and purchase requests
+          </p>
         </div>
-        <ol className="flex items-center text-[13px] text-muted-foreground">
-          <li>
-            <Link href="/" className="hover:text-primary transition-colors">Dashboard</Link>
-          </li>
-          <li className="mx-1 text-muted-foreground/60">&rsaquo;</li>
-          <li className="text-primary font-medium">Orders</li>
-        </ol>
       </div>
 
       {/* ── Search and Metric Actions Row ─────────────────────────── */}
@@ -153,44 +279,21 @@ export default function OrdersPage() {
             {selectedRows.length > 0 && (
               <button
                 onClick={handleBulkDelete}
-                className="bg-[#ff5b5b]/10 text-[#ff5b5b] hover:bg-[#ff5b5b] hover:text-white text-[13px] font-bold px-3 py-1.5 rounded-[5px] flex items-center gap-1.5 transition-all border border-[#ff5b5b]/20"
+                className="bg-[#ff5b5b]/10 text-[#ff5b5b] hover:bg-[#ff5b5b] hover:text-white text-[13px] font-bold px-3 py-1.5 rounded-[5px] flex items-center gap-1.5 transition-all border border-[#ff5b5b]/20 cursor-pointer"
               >
                 <i className="ri-trash-line text-[15px]" /> Delete Selected ({selectedRows.length})
               </button>
             )}
             <button
-              onClick={() => {
-                alert("This features lets you export all orders as excel sheet or pdf documents.");
-              }}
-              className="border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-[13px] font-bold h-9 px-3 rounded-[5px] flex items-center gap-1 transition-colors"
+              onClick={handleExport}
+              disabled={filteredOrders.length === 0}
+              className="border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-[13px] font-bold h-9 px-3 rounded-[5px] flex items-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               <i className="ri-download-2-line" /> Export
             </button>
             <button
-              onClick={() => {
-                const name = prompt("Enter customer name for new order:");
-                if (!name) return;
-                const propType = prompt("Enter property type (Residential/Commercial/Apartment/Industrial):", "Residential");
-                if (!propType) return;
-                const amount = prompt("Enter order amount ($):", "1500000");
-                if (!amount) return;
-                const props = prompt("Enter property address(es):", "123 Main St");
-                if (!props) return;
-
-                const newOrder: Order = {
-                  id: `ORD-0${orders.length + 1}`,
-                  name,
-                  avatar: `/assets/images/users/avatar-${(orders.length % 9) + 2}.jpg`,
-                  date: new Date().toLocaleDateString("en-GB"),
-                  phone: "+231 00-0000000",
-                  propertyType: propType,
-                  amount: parseFloat(amount),
-                  properties: props,
-                  status: "Pending"
-                };
-                setOrders([newOrder, ...orders]);
-              }}
-              className="bg-[#0acf97] text-white text-[13px] font-bold px-3.5 py-1.5 rounded-[5px] flex items-center gap-1 hover:bg-[#09b986] transition-all"
+              onClick={handleNewOrder}
+              className="bg-[#0acf97] text-white text-[13px] font-bold px-3.5 py-1.5 rounded-[5px] flex items-center gap-1 hover:bg-[#09b986] transition-all cursor-pointer"
             >
               <i className="ri-add-line text-[15px]" /> New Order
             </button>
@@ -199,47 +302,61 @@ export default function OrdersPage() {
       </div>
 
       {/* ── Orders Table List ──────────────────────────────── */}
-      <div className="bg-card border border-border rounded-[8px] shadow-[0_0_35px_rgba(154,161,171,0.05)] overflow-hidden">
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-          <h4 className="font-bold text-[15.5px] text-foreground">All Order List</h4>
-        </div>
+      {isLoading ? (
+        <TableSkeleton rows={5} cols={9} />
+      ) : filteredOrders.length === 0 ? (
+        <EmptyState
+          icon={ShoppingCart}
+          title="No Orders Found"
+          description={
+            searchTerm
+              ? "There are no orders that match your search query. Try typing something else."
+              : "No orders found in this status filter."
+          }
+          actionLabel={searchTerm ? "Clear Search" : "Create New Order"}
+          onAction={() => {
+            if (searchTerm) {
+              setSearchTerm("");
+            } else {
+              handleNewOrder();
+            }
+          }}
+        />
+      ) : (
+        <div className="bg-card border border-border rounded-[8px] shadow-[0_0_35px_rgba(154,161,171,0.05)] overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+            <h4 className="font-bold text-[15.5px] text-foreground">All Order List</h4>
+          </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse align-middle text-nowrap">
-            <thead className="bg-[#f8f9fa] dark:bg-[#1f293d] border-b border-border text-[12.5px] text-muted-foreground font-bold uppercase tracking-wider">
-              <tr>
-                <th className="px-5 py-3.5 w-10">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="rounded border-border text-[#604ae3] focus:ring-[#604ae3] h-4 w-4"
-                      onChange={handleSelectAll}
-                      checked={
-                        paginatedOrders.length > 0 &&
-                        paginatedOrders.every((o) => selectedRows.includes(o.id))
-                      }
-                    />
-                  </div>
-                </th>
-                <th className="px-5 py-3.5">Customer Photo & Name</th>
-                <th className="px-5 py-3.5">Purchase Date</th>
-                <th className="px-5 py-3.5">Contact</th>
-                <th className="px-5 py-3.5">Property Type</th>
-                <th className="px-5 py-3.5">Amount</th>
-                <th className="px-5 py-3.5">Purchase Properties</th>
-                <th className="px-5 py-3.5">Amount Status</th>
-                <th className="px-5 py-3.5 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="text-[13.5px] divide-y divide-border text-foreground">
-              {paginatedOrders.length === 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse align-middle text-nowrap">
+              <thead className="bg-[#f8f9fa] dark:bg-[#1f293d] border-b border-border text-[12.5px] text-muted-foreground font-bold uppercase tracking-wider">
                 <tr>
-                  <td colSpan={9} className="px-5 py-12 text-center text-muted-foreground">
-                    No orders found matching the search criteria.
-                  </td>
+                  <th className="px-5 py-3.5 w-10">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="rounded border-border text-[#604ae3] focus:ring-[#604ae3] h-4 w-4"
+                        onChange={handleSelectAll}
+                        checked={
+                          paginatedOrders.length > 0 &&
+                          paginatedOrders.every((o) => selectedRows.includes(o.id))
+                        }
+                      />
+                    </div>
+                  </th>
+                  <th className="px-5 py-3.5">Customer Photo & Name</th>
+                  <th className="px-5 py-3.5">Purchase Date</th>
+                  <th className="px-5 py-3.5">Contact</th>
+                  <th className="px-5 py-3.5">Property Type</th>
+                  <th className="px-5 py-3.5">Amount</th>
+                  <th className="px-5 py-3.5">Purchase Properties</th>
+                  <th className="px-5 py-3.5">Amount Status</th>
+                  <th className="px-5 py-3.5 text-right">Action</th>
                 </tr>
-              ) : (
-                paginatedOrders.map((order) => {
+              </thead>
+              <tbody className="text-[13.5px] divide-y divide-border text-foreground">
+                {paginatedOrders.map((order) => {
                   const isChecked = selectedRows.includes(order.id);
                   return (
                     <tr
@@ -271,19 +388,18 @@ export default function OrdersPage() {
                           <span className="font-semibold text-foreground">{order.name}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-muted-foreground">
-                        {order.date}
-                      </td>
-                      <td className="px-5 py-3 text-muted-foreground font-medium">
-                        {order.phone}
-                      </td>
+                      <td className="px-5 py-3 text-muted-foreground">{order.date}</td>
+                      <td className="px-5 py-3 text-muted-foreground font-medium">{order.phone}</td>
                       <td className="px-5 py-3 text-foreground font-semibold">
                         {order.propertyType}
                       </td>
                       <td className="px-5 py-3 text-foreground font-bold">
                         {formatPrice(order.amount)}
                       </td>
-                      <td className="px-5 py-3 text-muted-foreground max-w-[220px] truncate" title={order.properties}>
+                      <td
+                        className="px-5 py-3 text-muted-foreground max-w-[220px] truncate"
+                        title={order.properties}
+                      >
                         {order.properties}
                       </td>
                       <td className="px-5 py-3">
@@ -302,29 +418,22 @@ export default function OrdersPage() {
                       <td className="px-5 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => {
-                              alert(`Order details:\nID: ${order.id}\nCustomer: ${order.name}\nAmount: ${formatPrice(order.amount)}\nProperties: ${order.properties}\nStatus: ${order.status}`);
-                            }}
-                            className="h-8 w-8 rounded bg-secondary hover:bg-secondary-foreground/10 text-secondary-foreground flex items-center justify-center transition-colors text-[16px]"
+                            onClick={() => handleViewDetails(order)}
+                            className="h-8 w-8 rounded bg-secondary hover:bg-secondary-foreground/10 text-secondary-foreground flex items-center justify-center transition-colors text-[16px] cursor-pointer"
                             title="View Details"
                           >
                             <i className="ri-eye-line text-[15px]" />
                           </button>
                           <button
-                            onClick={() => {
-                              const newStatus = prompt("Change status (Paid/Pending/Unpaid):", order.status);
-                              if (newStatus === "Paid" || newStatus === "Pending" || newStatus === "Unpaid") {
-                                setOrders(orders.map(o => o.id === order.id ? { ...o, status: newStatus } : o));
-                              }
-                            }}
-                            className="h-8 w-8 rounded bg-soft-primary text-primary hover:bg-[#604ae3] hover:text-white flex items-center justify-center transition-all text-[16px]"
+                            onClick={() => handleEditStatus(order)}
+                            className="h-8 w-8 rounded bg-soft-primary text-primary hover:bg-[#604ae3] hover:text-white flex items-center justify-center transition-all text-[16px] cursor-pointer"
                             title="Edit Status"
                           >
                             <i className="ri-edit-line text-[15px]" />
                           </button>
                           <button
                             onClick={() => handleDelete(order.id)}
-                            className="h-8 w-8 rounded bg-soft-danger text-danger hover:bg-[#ff5b5b] hover:text-white flex items-center justify-center transition-all text-[16px]"
+                            className="h-8 w-8 rounded bg-soft-danger text-danger hover:bg-[#ff5b5b] hover:text-white flex items-center justify-center transition-all text-[16px] cursor-pointer"
                             title="Delete"
                           >
                             <i className="ri-delete-bin-line text-[15px]" />
@@ -333,64 +442,64 @@ export default function OrdersPage() {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
 
-        {/* ── Table Pagination Footer ─────────────────────────────── */}
-        {filteredOrders.length > 0 && (
-          <div className="px-5 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-[13px] text-muted-foreground">
-              Showing <span className="font-semibold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
-              <span className="font-semibold text-foreground">
-                {Math.min(currentPage * itemsPerPage, filteredOrders.length)}
-              </span>{" "}
-              of <span className="font-semibold text-foreground">{filteredOrders.length}</span> Orders
-            </p>
-            <nav className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled={currentPage === 1}
-                onClick={() => handlePageChange(currentPage - 1)}
-                className={`text-[12.5px] border border-border px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
-                  currentPage === 1
-                    ? "text-muted-foreground/40 cursor-not-allowed"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                Previous
-              </button>
-              {Array.from({ length: totalPages }).map((_, idx) => (
+          {/* ── Table Pagination Footer ─────────────────────────────── */}
+          {filteredOrders.length > 0 && (
+            <div className="px-5 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-[13px] text-muted-foreground">
+                Showing <span className="font-semibold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
+                <span className="font-semibold text-foreground">
+                  {Math.min(currentPage * itemsPerPage, filteredOrders.length)}
+                </span>{" "}
+                of <span className="font-semibold text-foreground">{filteredOrders.length}</span> Orders
+              </p>
+              <nav className="flex items-center gap-1">
                 <button
-                  key={idx}
-                  onClick={() => handlePageChange(idx + 1)}
-                  className={`h-8 w-8 rounded-[5px] text-[12.5px] font-bold transition-all ${
-                    currentPage === idx + 1
-                      ? "bg-[#604ae3] text-white"
-                      : "text-muted-foreground border border-border hover:bg-muted"
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  className={`text-[12.5px] border border-border px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
+                    currentPage === 1
+                      ? "text-muted-foreground/40 cursor-not-allowed"
+                      : "text-muted-foreground hover:bg-muted cursor-pointer"
                   }`}
                 >
-                  {idx + 1}
+                  Previous
                 </button>
-              ))}
-              <button
-                type="button"
-                disabled={currentPage === totalPages}
-                onClick={() => handlePageChange(currentPage + 1)}
-                className={`text-[12.5px] border border-border px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
-                  currentPage === totalPages
-                    ? "text-muted-foreground/40 cursor-not-allowed"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                Next
-              </button>
-            </nav>
-          </div>
-        )}
-      </div>
+                {Array.from({ length: totalPages }).map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handlePageChange(idx + 1)}
+                    className={`h-8 w-8 rounded-[5px] text-[12.5px] font-bold transition-all cursor-pointer ${
+                      currentPage === idx + 1
+                        ? "bg-[#604ae3] text-white"
+                        : "text-muted-foreground border border-border hover:bg-muted"
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  className={`text-[12.5px] border border-border px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
+                    currentPage === totalPages
+                      ? "text-muted-foreground/40 cursor-not-allowed"
+                      : "text-muted-foreground hover:bg-muted cursor-pointer"
+                  }`}
+                >
+                  Next
+                </button>
+              </nav>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

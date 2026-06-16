@@ -3,15 +3,17 @@
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { useAppStore } from "@/store/useAppStore";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 export function WeeklySalesChart() {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { closedDeals } = useAppStore();
 
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   if (!mounted) {
@@ -22,9 +24,21 @@ export function WeeklySalesChart() {
   const labelColor = isDark ? "#94a3b8" : "#98a6ad";
   const gridColor = isDark ? "#2b3547" : "#eef2f7";
 
-  const data = [35, 55, 40, 65, 45, 70, 40];
-  const colors = data.map((val) => {
-    const maxVal = Math.max(...data);
+  const baseWeeklySales = [35, 55, 40, 65, 45, 70, 40];
+  const adjustedWeeklySales = [...baseWeeklySales];
+
+  closedDeals.forEach((deal) => {
+    if (deal.id !== "DEAL-001" && deal.id !== "DEAL-002" && deal.id !== "DEAL-003") {
+      const date = new Date(deal.closeDate);
+      const day = date.getDay(); // 0 (Sun) - 6 (Sat)
+      if (day >= 0 && day <= 6) {
+        adjustedWeeklySales[day] += 5; // increment by 5 to make it visually stand out!
+      }
+    }
+  });
+
+  const colors = adjustedWeeklySales.map((val) => {
+    const maxVal = Math.max(...adjustedWeeklySales);
     return val === maxVal ? "#604ae3" : "#c9c3f3";
   });
 
@@ -62,7 +76,7 @@ export function WeeklySalesChart() {
     },
     yaxis: {
       min: 0,
-      max: 70,
+      max: Math.max(...adjustedWeeklySales) + 5,
       tickAmount: 2,
       labels: {
         style: { colors: labelColor, fontSize: "10px" },
@@ -77,10 +91,11 @@ export function WeeklySalesChart() {
   return (
     <Chart
       options={options}
-      series={[{ name: "Sales", data }]}
+      series={[{ name: "Sales", data: adjustedWeeklySales }]}
       type="bar"
       height={140}
       width="100%"
     />
   );
 }
+

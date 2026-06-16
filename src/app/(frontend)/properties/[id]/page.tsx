@@ -1,12 +1,18 @@
 "use client";
 
-import { properties } from "@/data/mockProperties";
+import { useAppStore } from "@/store/useAppStore";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { use, useState, useEffect } from "react";
+import { RecordDealModal } from "@/components/modals/RecordDealModal";
+import { EntityNotesCard } from "@/components/ui/EntityNotesCard";
+import { DocumentManager } from "@/components/ui/DocumentManager";
 
 export default function PropertyDetails({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
+  const { properties } = useAppStore();
+  const [isRecordDealOpen, setIsRecordDealOpen] = useState(false);
+
   
   // Resolve both direct match (PROP-001) and short index/numeric matches (1, 01, etc.)
   const property = properties.find((p) => {
@@ -92,7 +98,7 @@ export default function PropertyDetails({ params }: { params: Promise<{ id: stri
         </div>
         <ol className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
           <li>
-            <a href="/" className="hover:text-primary transition-colors">Real Estate</a>
+            <Link href="/" className="hover:text-primary transition-colors">Real Estate</Link>
           </li>
           <li><i className="ri-arrow-right-s-line text-[12px]" /></li>
           <li className="text-primary font-medium">Property Overview</li>
@@ -265,13 +271,29 @@ export default function PropertyDetails({ params }: { params: Promise<{ id: stri
             </div>
 
             {/* Price Indicator */}
-            <div className="flex items-center gap-2 pt-1">
-              <div className="h-8 w-8 rounded bg-[#0acf97]/15 flex items-center justify-center">
-                <iconify-icon icon="solar:wallet-money-bold-duotone" className="text-[18px] text-[#0acf97]" />
+            <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded bg-[#0acf97]/15 flex items-center justify-center">
+                  <iconify-icon icon="solar:wallet-money-bold-duotone" className="text-[18px] text-[#0acf97]" />
+                </div>
+                <p className={`text-[18px] font-bold ${isSold ? "text-muted-foreground line-through decoration-muted-foreground/60" : "text-foreground"}`}>
+                  ${property.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
-              <p className={`text-[18px] font-bold ${isSold ? "text-muted-foreground line-through decoration-muted-foreground/60" : "text-foreground"}`}>
-                ${property.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
+              
+              {isSold ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[5px] text-[13px] font-bold bg-soft-danger text-danger border border-danger/10">
+                  <i className="ri-checkbox-circle-fill text-[15px]" /> Closed Deal & Sold
+                </span>
+              ) : (
+                <button
+                  id="record-deal-detail-btn"
+                  onClick={() => setIsRecordDealOpen(true)}
+                  className="bg-[#0acf97] hover:bg-[#0acf97]/90 text-white text-[12.5px] font-bold px-4 py-2 rounded-[5px] flex items-center gap-1.5 shadow-sm transition-all active:scale-[0.98]"
+                >
+                  <i className="ri-exchange-dollar-line text-[15px]" /> Record Sale & Log Commission
+                </button>
+              )}
             </div>
 
             {/* Specifications Ribbon (dashed border box) */}
@@ -384,7 +406,7 @@ export default function PropertyDetails({ params }: { params: Promise<{ id: stri
                   <select
                     value={selectedStyle}
                     onChange={(e) => {
-                      setSelectedStyle(e.target.value as any);
+                      setSelectedStyle(e.target.value as typeof selectedStyle);
                       setStageFinished(false);
                     }}
                     className="w-full text-[13px] border border-border bg-muted/30 text-foreground rounded-[5px] px-3 py-2 outline-none focus:border-[#604ae3] transition-colors font-semibold"
@@ -436,7 +458,7 @@ export default function PropertyDetails({ params }: { params: Promise<{ id: stri
                     </div>
                     <h5 className="text-[14px] font-bold text-foreground">Interactive Virtual Staging</h5>
                     <p className="text-[12px] text-muted-foreground leading-relaxed">
-                      Select a room template and choose a target styling from the menu, then click "Run AI Staging" to render a simulated comparison.
+                      Select a room template and choose a target styling from the menu, then click &quot;Run AI Staging&quot; to render a simulated comparison.
                     </p>
                   </div>
                 )}
@@ -554,9 +576,17 @@ export default function PropertyDetails({ params }: { params: Promise<{ id: stri
             />
           </div>
 
+          <EntityNotesCard entityId={property.id} />
+          <DocumentManager entityId={property.id} />
         </div>
 
       </div>
+      <RecordDealModal
+        isOpen={isRecordDealOpen}
+        onClose={() => setIsRecordDealOpen(false)}
+        defaultPropertyId={property.id}
+        defaultAgentId={property.agentId}
+      />
     </div>
   );
 }

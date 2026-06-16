@@ -17,7 +17,7 @@ export function RadialChart({ value = 70, color = "#604ae3", height = 220 }: Rad
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   if (!mounted) {
@@ -28,6 +28,7 @@ export function RadialChart({ value = 70, color = "#604ae3", height = 220 }: Rad
   const trackColor = isDark ? "#2b3547" : "#eef2f7";
 
   const options: ApexCharts.ApexOptions = {
+    colors: [color],
     chart: {
       type: "radialBar",
       height,

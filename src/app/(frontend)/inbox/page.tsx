@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { mockEmails, Email, EmailAttachment } from "@/data/mockEmails";
+import { toast } from "@/store/useToastStore";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import Link from "next/link";
 
 export default function InboxPage() {
@@ -41,7 +43,7 @@ export default function InboxPage() {
       // Folder or Label match
       let matchesFolder = false;
       if (activeLabel) {
-        matchesFolder = email.labels.includes(activeLabel as any);
+        matchesFolder = (email.labels as string[]).includes(activeLabel);
       } else if (activeFolder === "starred") {
         matchesFolder = email.isStarred;
       } else if (activeFolder === "important") {
@@ -143,7 +145,7 @@ export default function InboxPage() {
     e.preventDefault();
     if (!replyText.trim() || !activeEmail) return;
 
-    alert(`Reply sent to ${activeEmail.senderEmail}:\n\n"${replyText}"`);
+    toast.success(`Reply sent to ${activeEmail.senderEmail}.`);
     setReplyText("");
   };
 
@@ -152,16 +154,10 @@ export default function InboxPage() {
       {/* ── Breadcrumb & Title ─────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
         <div>
+          <Breadcrumb />
           <h1 className="text-[20px] font-bold text-foreground">Inbox</h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">Access mail notifications, contact inquiries, and newsletters</p>
         </div>
-        <ol className="flex items-center text-[13px] text-muted-foreground">
-          <li>
-            <Link href="/" className="hover:text-primary transition-colors">Dashboard</Link>
-          </li>
-          <li className="mx-1 text-muted-foreground/60">&rsaquo;</li>
-          <li className="text-primary font-medium">Inbox</li>
-        </ol>
       </div>
 
       {/* ── Main Layout Split Screen ────────────────────────────────── */}
@@ -450,7 +446,7 @@ export default function InboxPage() {
                             <p className="text-[10px] text-muted-foreground mb-0">{file.size}</p>
                           </div>
                           <button
-                            onClick={() => alert(`Downloading ${file.name}...`)}
+                            onClick={() => toast.success(`Simulating download of ${file.name}...`)}
                             className="h-8 w-8 rounded-full hover:bg-muted text-primary flex items-center justify-center transition-colors"
                             title="Download File"
                           >

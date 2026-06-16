@@ -3,6 +3,10 @@
 import { Sidebar } from "@/components/layouts/Sidebar";
 import { Topbar } from "@/components/layouts/Topbar";
 import { ThemeSettings } from "@/components/layouts/ThemeSettings";
+import { ToastContainer } from "@/components/ui/ToastContainer";
+import { CustomDialogs } from "@/components/ui/CustomDialogs";
+import { CommandPalette } from "@/components/ui/CommandPalette";
+import { CompareBar } from "@/components/ui/CompareBar";
 import { useAppStore } from "@/store/useAppStore";
 import { useEffect, useState } from "react";
 
@@ -15,7 +19,7 @@ export default function DashboardLayout({
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   const sizeClass = !mounted ? "" : (
@@ -40,6 +44,11 @@ export default function DashboardLayout({
         </main>
       </div>
       <ThemeSettings />
+      <ToastContainer />
+      <CustomDialogs />
+      <CommandPalette />
+      <CompareBar />
     </div>
   );
 }
+

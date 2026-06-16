@@ -3,15 +3,17 @@
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { useAppStore } from "@/store/useAppStore";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 export function SalesAnalyticChart() {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { closedDeals } = useAppStore();
 
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   if (!mounted) {
@@ -82,14 +84,32 @@ export function SalesAnalyticChart() {
     },
   };
 
+  const baseRevenue = [31, 40, 28, 51, 42, 85, 70, 91, 110, 98, 120, 130];
+  const baseExpenses = [11, 32, 45, 32, 34, 52, 41, 70, 65, 76, 89, 68];
+
+  const adjustedRevenue = [...baseRevenue];
+  const adjustedExpenses = [...baseExpenses];
+
+  // Aggregate only new deals added dynamically to show incremental revenue in the chart
+  closedDeals.forEach((deal) => {
+    if (deal.id !== "DEAL-001" && deal.id !== "DEAL-002" && deal.id !== "DEAL-003") {
+      const date = new Date(deal.closeDate);
+      const month = date.getMonth(); // 0-11
+      if (month >= 0 && month <= 11) {
+        adjustedRevenue[month] += Math.round(deal.grossCommission / 1000);
+        adjustedExpenses[month] += Math.round(deal.agentPayout / 1000);
+      }
+    }
+  });
+
   const series = [
     {
       name: "Revenue",
-      data: [31, 40, 28, 51, 42, 85, 70, 91, 110, 98, 120, 130],
+      data: adjustedRevenue,
     },
     {
       name: "Expenses",
-      data: [11, 32, 45, 32, 34, 52, 41, 70, 65, 76, 89, 68],
+      data: adjustedExpenses,
     },
   ];
 
@@ -98,5 +118,4 @@ export function SalesAnalyticChart() {
   );
 }
 
-// Keep old name as alias for backward compatibility
 export { SalesAnalyticChart as RevenueChart };

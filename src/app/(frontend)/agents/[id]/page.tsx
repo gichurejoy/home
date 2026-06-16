@@ -1,12 +1,17 @@
-import { agents } from "@/data/mockAgents";
+"use client";
+
+import { useAppStore } from "@/store/useAppStore";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-
-// Import the Client Component which internally handles the dynamic chart import
+import { use, useState } from "react";
 import DetailChartsClient from "./DetailChartsClient";
+import { RecordDealModal } from "@/components/modals/RecordDealModal";
+import { EntityNotesCard } from "@/components/ui/EntityNotesCard";
 
-export default async function AgentDetails({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
+export default function AgentDetails({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  const { agents, closedDeals, properties } = useAppStore();
+  const [isRecordDealOpen, setIsRecordDealOpen] = useState(false);
 
   // Resolve direct match (AGT-001) and numeric index matches (1, 01, etc.)
   const agent = agents.find((a) => {
@@ -91,17 +96,17 @@ export default async function AgentDetails({ params }: { params: Promise<{ id: s
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setIsRecordDealOpen(true)}
+                  className="bg-[#0acf97] hover:bg-[#0acf97]/90 text-white text-[13.5px] font-bold py-2 px-4 rounded-[5px] active:scale-[0.98] transition-all text-center flex items-center gap-1.5 shadow-sm"
+                >
+                  <i className="ri-exchange-dollar-line text-[16px] align-middle" /> Record Deal
+                </button>
                 <a
                   href={`mailto:${agent.email}`}
-                  className="bg-[#604ae3] text-white text-[13px] font-bold py-2 px-4 rounded-[5px] hover:bg-[#503bc7] active:scale-[0.98] transition-all text-center flex items-center gap-1 shadow-sm"
+                  className="bg-card border border-border text-foreground hover:bg-muted text-[13.5px] font-bold py-2 px-4 rounded-[5px] active:scale-[0.98] transition-all text-center flex items-center gap-1.5"
                 >
                   <iconify-icon icon="solar:chat-round-dots-broken" className="text-[16px] align-middle" /> Message
-                </a>
-                <a
-                  href="#!"
-                  className="bg-card border border-border text-foreground hover:bg-muted text-[13px] font-bold py-2 px-4 rounded-[5px] active:scale-[0.98] transition-all text-center"
-                >
-                  Work With {agent.name.split(" ")[0]}
                 </a>
               </div>
             </div>
@@ -154,60 +159,189 @@ export default async function AgentDetails({ params }: { params: Promise<{ id: s
           </div>
 
           {/* Property status Sparkline widget cards */}
-          <div className="space-y-3">
-            <h4 className="text-[14.5px] font-bold text-foreground">Property Status :</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
-              {/* Card 1: Total Listing */}
-              <div className="bg-card border border-border rounded-[8px] p-4 shadow-[0_0_35px_rgba(154,161,171,0.05)]">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="h-9 w-9 bg-primary/10 rounded flex items-center justify-center mb-3">
-                      <iconify-icon icon="solar:home-bold" className="text-[20px] text-primary" />
+          {(() => {
+            const agentProperties = properties.filter(p => p.agentId === agent.id);
+            const agentDeals = closedDeals.filter(d => d.agentId === agent.id);
+            
+            const listingsCount = agent.listingsCount - 2 + agentProperties.filter(p => p.status !== "Sold").length;
+            const soldCount = agent.soldCount - 3 + agentDeals.length;
+            const rentCount = agent.rentCount;
+            const commissionEarned = agentDeals.reduce((sum, d) => sum + d.agentPayout, 0);
+
+            return (
+              <div className="space-y-3">
+                <h4 className="text-[14.5px] font-bold text-foreground">Property Status :</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                  
+                  {/* Card 1: Total Listing */}
+                  <div className="bg-card border border-border rounded-[8px] p-4 shadow-[0_0_35px_rgba(154,161,171,0.05)]">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="h-9 w-9 bg-primary/10 rounded flex items-center justify-center mb-3">
+                          <iconify-icon icon="solar:home-bold" className="text-[20px] text-primary" />
+                        </div>
+                        <p className="text-[12.5px] font-semibold text-muted-foreground">Total Listing</p>
+                        <h4 className="text-[22px] font-bold text-foreground mt-0.5">{listingsCount}</h4>
+                      </div>
+                      <div className="w-[110px]">
+                        <DetailChartsClient chartType="listings" color="#604ae3" />
+                      </div>
                     </div>
-                    <p className="text-[12.5px] font-semibold text-muted-foreground">Total Listing</p>
-                    <h4 className="text-[22px] font-bold text-foreground mt-0.5">{agent.listingsCount}</h4>
                   </div>
-                  <div className="w-[110px]">
-                    <DetailChartsClient chartType="listings" color="#604ae3" />
+
+                  {/* Card 2: Property Sold */}
+                  <div className="bg-card border border-border rounded-[8px] p-4 shadow-[0_0_35px_rgba(154,161,171,0.05)]">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="h-9 w-9 bg-primary/10 rounded flex items-center justify-center mb-3">
+                          <iconify-icon icon="solar:wallet-money-bold" className="text-[20px] text-primary" />
+                        </div>
+                        <p className="text-[12.5px] font-semibold text-muted-foreground">Property Sold</p>
+                        <h4 className="text-[22px] font-bold text-foreground mt-0.5">{soldCount}</h4>
+                      </div>
+                      <div className="w-[110px]">
+                        <DetailChartsClient chartType="sold" color="#0acf97" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Property Rent */}
+                  <div className="bg-card border border-border rounded-[8px] p-4 shadow-[0_0_35px_rgba(154,161,171,0.05)]">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="h-9 w-9 bg-primary/10 rounded flex items-center justify-center mb-3">
+                          <iconify-icon icon="solar:hand-money-bold" className="text-[20px] text-primary" />
+                        </div>
+                        <p className="text-[12.5px] font-semibold text-muted-foreground">Property Rent</p>
+                        <h4 className="text-[22px] font-bold text-foreground mt-0.5">{rentCount}</h4>
+                      </div>
+                      <div className="w-[110px]">
+                        <DetailChartsClient chartType="rent" color="#ffb12f" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Commission Earned */}
+                  <div className="bg-card border border-border rounded-[8px] p-4 shadow-[0_0_35px_rgba(154,161,171,0.05)]">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="h-9 w-9 bg-primary/10 rounded flex items-center justify-center mb-3">
+                          <iconify-icon icon="solar:double-alt-arrow-up-bold" className="text-[20px] text-primary" />
+                        </div>
+                        <p className="text-[12.5px] font-semibold text-muted-foreground">Commission Earned</p>
+                        <h4 className="text-[22px] font-bold text-foreground mt-0.5">${commissionEarned.toLocaleString()}</h4>
+                      </div>
+                      <div className="w-[110px]">
+                        <DetailChartsClient chartType="listings" color="#39afd1" />
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── B2B SaaS Premium Feature: Commission Splits & Payout Progress ── */}
+          {(() => {
+            const agentDeals = closedDeals.filter(d => d.agentId === agent.id);
+            const totalEarned = agentDeals.reduce((sum, d) => sum + d.agentPayout, 0);
+            const capMet = Math.min(100, Math.round((totalEarned / 100000) * 100));
+
+            return (
+              <div className="bg-card border border-border rounded-[8px] p-5 shadow-[0_0_35px_rgba(154,161,171,0.08)] space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-3">
+                  <div>
+                    <span className="bg-[#604ae3]/10 text-[#604ae3] text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-[4px] tracking-wider">
+                      B2B SaaS Premium
+                    </span>
+                    <h4 className="text-[15.5px] font-bold text-foreground mt-1.5 flex items-center gap-1.5">
+                      <iconify-icon icon="solar:graph-bold-duotone" className="text-[19px] text-primary" />
+                      Commission Cap & Split Progress
+                    </h4>
+                    <p className="text-[12.5px] text-muted-foreground mt-0.5">
+                      Real-time brokerage split cap tracking. Agent keeps 100% of splits after hitting cap.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[13px] font-extrabold text-[#0acf97] bg-soft-success px-2.5 py-1 rounded">
+                      {capMet >= 100 ? "100% Cap-Met Split" : "80/20 Tiered Split"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Cap Status Progress Bar */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-[12.5px] font-bold">
+                    <span className="text-muted-foreground">Annual Split Cap Status ($100K Limit)</span>
+                    <span className="text-foreground">${totalEarned.toLocaleString()} / $100,000 ({capMet}% Met)</span>
+                  </div>
+                  <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-500 ${capMet >= 100 ? "bg-[#0acf97]" : "bg-[#604ae3]"}`}
+                      style={{ width: `${capMet}%` }}
+                    />
+                  </div>
+                  <p className="text-[11.5px] text-muted-foreground">
+                    {capMet >= 100
+                      ? "🎉 Cap met! This agent is now on 100% commission splits for the remainder of the calendar year."
+                      : `Agent needs $${(100000 - totalEarned).toLocaleString()} more in split payouts to achieve 100% commission rate.`}
+                  </p>
+                </div>
+
+                {/* Split Ledger Table */}
+                <div className="space-y-3.5 pt-2">
+                  <h5 className="text-[13px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Recent Closed Deal Split Ledger
+                  </h5>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-border text-[12px] font-semibold text-muted-foreground">
+                          <th className="pb-2.5">Property / Deal</th>
+                          <th className="pb-2.5">Gross Commission</th>
+                          <th className="pb-2.5">Split Ratio</th>
+                          <th className="pb-2.5">Agent Payout</th>
+                          <th className="pb-2.5 text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border text-[12.5px] font-medium text-foreground/80">
+                        {agentDeals.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="py-6 text-center text-muted-foreground">
+                              No deals closed yet.
+                            </td>
+                          </tr>
+                        ) : (
+                          agentDeals.map((row) => (
+                            <tr key={row.id} className="hover:bg-muted/10">
+                              <td className="py-2.5 font-bold text-foreground">{row.propertyTitle}</td>
+                              <td className="py-2.5">{row.grossCommission.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}</td>
+                              <td className="py-2.5">
+                                <span className={`text-[11px] px-1.5 py-0.2 rounded font-bold ${
+                                  row.splitRatio.includes("Cap-Met") ? "bg-[#0acf97]/15 text-[#0acf97]" : "bg-primary/10 text-primary"
+                                }`}>
+                                  {row.splitRatio}
+                                </span>
+                              </td>
+                              <td className="py-2.5 text-success font-bold">{row.agentPayout.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}</td>
+                              <td className="py-2.5 text-right font-bold text-muted-foreground">
+                                <span className={`text-[11px] px-2 py-0.5 rounded font-bold ${
+                                  row.status === "Paid" ? "bg-soft-success text-success" : "bg-soft-warning text-warning"
+                                }`}>
+                                  {row.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
-
-              {/* Card 2: Property Sold */}
-              <div className="bg-card border border-border rounded-[8px] p-4 shadow-[0_0_35px_rgba(154,161,171,0.05)]">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="h-9 w-9 bg-primary/10 rounded flex items-center justify-center mb-3">
-                      <iconify-icon icon="solar:wallet-money-bold" className="text-[20px] text-primary" />
-                    </div>
-                    <p className="text-[12.5px] font-semibold text-muted-foreground">Property Sold</p>
-                    <h4 className="text-[22px] font-bold text-foreground mt-0.5">{agent.soldCount}</h4>
-                  </div>
-                  <div className="w-[110px]">
-                    <DetailChartsClient chartType="sold" color="#0acf97" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 3: Property Rent */}
-              <div className="bg-card border border-border rounded-[8px] p-4 shadow-[0_0_35px_rgba(154,161,171,0.05)]">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="h-9 w-9 bg-primary/10 rounded flex items-center justify-center mb-3">
-                      <iconify-icon icon="solar:hand-money-bold" className="text-[20px] text-primary" />
-                    </div>
-                    <p className="text-[12.5px] font-semibold text-muted-foreground">Property Rent</p>
-                    <h4 className="text-[22px] font-bold text-foreground mt-0.5">{agent.rentCount}</h4>
-                  </div>
-                  <div className="w-[110px]">
-                    <DetailChartsClient chartType="rent" color="#ffb12f" />
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Reviews List Widget */}
           <div className="space-y-4">
@@ -315,12 +449,11 @@ export default async function AgentDetails({ params }: { params: Promise<{ id: s
                     <p className="text-[11px] text-muted-foreground mt-0.5">2.3 MB</p>
                   </div>
                 </div>
-                <i className="ri-download-cloud-2-line text-muted-foreground text-[18px] shrink-0" />
               </div>
-
             </div>
           </div>
 
+          <EntityNotesCard entityId={agent.id} />
         </div>
 
         {/* Right Column: Trophy/Medal, Location Vector Map, Contact Scheduler Form (col-xl-4) */}
@@ -438,6 +571,11 @@ export default async function AgentDetails({ params }: { params: Promise<{ id: s
         </div>
 
       </div>
+      <RecordDealModal
+        isOpen={isRecordDealOpen}
+        onClose={() => setIsRecordDealOpen(false)}
+        defaultAgentId={agent.id}
+      />
     </div>
   );
 }

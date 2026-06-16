@@ -5,6 +5,9 @@ import { SalesFunnelChart } from "@/components/charts/SalesFunnelChart";
 import { RecentAgentStatusChart } from "@/components/charts/RecentAgentStatusChart";
 import { AgentGoalsChart } from "@/components/charts/AgentGoalsChart";
 import { WorldMap } from "@/components/charts/WorldMap";
+import { useAppStore } from "@/store/useAppStore";
+import { RecordDealModal } from "@/components/modals/RecordDealModal";
+import Link from "next/link";
 
 import * as React from "react";
 
@@ -60,6 +63,8 @@ function Dropdown({ options, selected, onSelect }: DropdownProps) {
 }
 
 export default function AgentDashboard() {
+  const { properties, agents, customers, closedDeals, addClosedDeal } = useAppStore();
+  const [isRecordDealOpen, setIsRecordDealOpen] = useState(false);
   // Dropdown states
   const [funnelPeriod, setFunnelPeriod] = useState("This Month");
   const [revenuePeriod, setRevenuePeriod] = useState("This Month");
@@ -136,15 +141,27 @@ export default function AgentDashboard() {
       }} />
 
       {/* ── Breadcrumb & Title ─────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <h1 className="text-[20px] font-bold text-foreground">Agent</h1>
-        <ol className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-          <li>
-            <a href="/" className="hover:text-primary transition-colors">Dashboards</a>
-          </li>
-          <li><i className="ri-arrow-right-s-line text-[12px]" /></li>
-          <li className="text-primary font-medium">Agent</li>
-        </ol>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-[20px] font-bold text-foreground">Agent</h1>
+          <p className="text-[13px] text-muted-foreground mt-0.5">Real-time split plans, brokerage splits and team rankings</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsRecordDealOpen(true)}
+            className="bg-[#0acf97] hover:bg-[#0acf97]/90 text-white text-[13px] font-bold px-4 py-2 rounded-[5px] flex items-center gap-1.5 shadow-sm transition-all active:scale-[0.98]"
+          >
+            <i className="ri-exchange-dollar-line text-[16px] align-middle" /> Record Closed Deal
+          </button>
+          
+          <ol className="hidden sm:flex items-center gap-1.5 text-[13px] text-muted-foreground bg-card border border-border rounded-[5px] px-3 py-1.5">
+            <li>
+              <a href="/" className="hover:text-primary transition-colors">Dashboards</a>
+            </li>
+            <li><i className="ri-arrow-right-s-line text-[12px]" /></li>
+            <li className="text-primary font-medium">Agent</li>
+          </ol>
+        </div>
       </div>
 
       {/* ── Top Stat Cards ─────────────────────────────────────────── */}
@@ -509,6 +526,37 @@ export default function AgentDashboard() {
                     const agentPayout = (gross * splitRate) / 100;
                     const brokerCut = gross - agentPayout;
 
+                    const handleLogDeal = () => {
+                      const unsoldProps = properties.filter(p => p.status !== "Sold");
+                      const matchedProp = unsoldProps.length > 0 ? unsoldProps[0] : properties[0];
+                      if (!matchedProp) {
+                        triggerToast("No properties available to log a deal.");
+                        return;
+                      }
+                      
+                      const matchedAgent = agents[0] || { id: "AGT-001", name: "Michael A. Miner" };
+                      const matchedCustomer = customers[0] || { name: "Daavid Nummi" };
+
+                      addClosedDeal({
+                        propertyId: matchedProp.id,
+                        propertyTitle: matchedProp.title,
+                        price: dealVolume,
+                        agentId: matchedAgent.id,
+                        agentName: matchedAgent.name,
+                        buyerName: matchedCustomer.name,
+                        commissionRate: isDoubleEnded ? 6.0 : commissionRate,
+                        grossCommission: Math.round(gross),
+                        splitRatio: isDoubleEnded ? "100% Cap-Met" : `${splitRate}/${100 - splitRate} Split`,
+                        agentPayout: Math.round(agentPayout),
+                        brokerCut: Math.round(brokerCut),
+                        doubleEnded: isDoubleEnded,
+                        closeDate: new Date().toISOString().split('T')[0],
+                        status: "Paid"
+                      });
+
+                      triggerToast(`Logged deal of $${dealVolume.toLocaleString()}! Added $${Math.round(agentPayout).toLocaleString()} agent split to payroll.`);
+                    };
+
                     return (
                       <div className="space-y-2.5 text-[13px] font-medium text-muted-foreground">
                         <div className="flex justify-between pb-1.5 border-b border-border">
@@ -537,7 +585,7 @@ export default function AgentDashboard() {
                         <div className="pt-2">
                           <button
                             type="button"
-                            onClick={() => triggerToast(`Commission transaction logged: ${agentPayout.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })} added to payroll.`)}
+                            onClick={handleLogDeal}
                             className="w-full bg-[#0acf97] hover:bg-[#0acf97]/95 text-white text-[12.5px] font-bold py-2 rounded-[5px] flex items-center justify-center gap-1 transition-all active:scale-[0.98]"
                           >
                             <iconify-icon icon="solar:check-circle-broken" /> Log Deal & Submit splits
@@ -563,36 +611,50 @@ export default function AgentDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border text-[13px] font-medium">
-                      {[
-                        { name: "Ryan G. Harris", avatar: "/assets/images/users/avatar-1.jpg", volume: 1250000, gross: 75000, payout: 60000, cap: 100 },
-                        { name: "Michael Coch", avatar: "/assets/images/users/avatar-2.jpg", volume: 950000, gross: 57000, payout: 39900, cap: 57 },
-                        { name: "Danielle C. Thom", avatar: "/assets/images/users/avatar-3.jpg", volume: 800000, gross: 48000, payout: 33600, cap: 48 },
-                        { name: "Julia V. Quincy", avatar: "/assets/images/users/avatar-5.jpg", volume: 650000, gross: 39000, payout: 27300, cap: 39 },
-                      ].map((item, idx) => (
-                        <tr key={idx} className="hover:bg-muted/10 transition-colors">
-                          <td className="py-3 pl-1">
-                            <div className="flex items-center gap-2.5">
-                              <span className="font-bold text-muted-foreground w-4">#{idx+1}</span>
-                              <img src={item.avatar} className="h-7 w-7 rounded-full object-cover border border-border" alt="" />
-                              <span className="font-bold text-foreground">{item.name}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 text-foreground">{item.volume.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}</td>
-                          <td className="py-3 text-muted-foreground">{item.gross.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}</td>
-                          <td className="py-3 text-[#0acf97] font-bold">{item.payout.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}</td>
-                          <td className="py-3">
-                            <div className="space-y-1 w-44">
-                              <div className="flex justify-between text-[11px] font-bold">
-                                <span>{item.cap}% met</span>
-                                <span className="text-foreground">${item.cap}K</span>
+                      {(() => {
+                        const sortedLeaderboard = agents.map(agent => {
+                          const agentDeals = closedDeals.filter(d => d.agentId === agent.id);
+                          const volume = agentDeals.reduce((sum, d) => sum + d.price, 0);
+                          const gross = agentDeals.reduce((sum, d) => sum + d.grossCommission, 0);
+                          const payout = agentDeals.reduce((sum, d) => sum + d.agentPayout, 0);
+                          const cap = Math.min(100, Math.round((payout / 100000) * 100));
+                          return {
+                            id: agent.id,
+                            name: agent.name,
+                            avatar: agent.avatar,
+                            volume,
+                            gross,
+                            payout,
+                            cap
+                          };
+                        }).sort((a, b) => b.volume - a.volume);
+
+                        return sortedLeaderboard.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-muted/10 transition-colors">
+                            <td className="py-3 pl-1">
+                              <div className="flex items-center gap-2.5">
+                                <span className="font-bold text-muted-foreground w-4">#{idx+1}</span>
+                                <img src={item.avatar} className="h-7 w-7 rounded-full object-cover border border-border" alt="" />
+                                <Link href={`/agents/${item.id}`} className="font-bold text-foreground hover:text-primary transition-colors">{item.name}</Link>
                               </div>
-                              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                                <div className={`h-full ${item.cap === 100 ? "bg-success" : "bg-primary"}`} style={{ width: `${item.cap}%` }} />
+                            </td>
+                            <td className="py-3 text-foreground">{item.volume > 0 ? item.volume.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }) : "$0"}</td>
+                            <td className="py-3 text-muted-foreground">{item.gross > 0 ? item.gross.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }) : "$0"}</td>
+                            <td className="py-3 text-[#0acf97] font-bold">{item.payout > 0 ? item.payout.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }) : "$0"}</td>
+                            <td className="py-3">
+                              <div className="space-y-1 w-44">
+                                <div className="flex justify-between text-[11px] font-bold">
+                                  <span>{item.cap}% met</span>
+                                  <span className="text-foreground">${(item.payout / 1000).toFixed(0)}K</span>
+                                </div>
+                                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                                  <div className={`h-full ${item.cap === 100 ? "bg-success" : "bg-primary"}`} style={{ width: `${item.cap}%` }} />
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        ));
+                      })()}
                     </tbody>
                   </table>
                 </div>
@@ -1111,6 +1173,11 @@ export default function AgentDashboard() {
           </div>
         </div>
       </div>
+
+      <RecordDealModal
+        isOpen={isRecordDealOpen}
+        onClose={() => setIsRecordDealOpen(false)}
+      />
     </div>
   );
 }

@@ -16,14 +16,12 @@ export default function DetailChartsClient({ chartType, color }: DetailChartsCli
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   if (!mounted) {
     return <div className="h-[45px] w-[100px] bg-muted/20 rounded animate-pulse" />;
   }
-
-  const isDark = theme === "dark";
 
   // Different mock sparkline data for each property stat
   const datasets = {

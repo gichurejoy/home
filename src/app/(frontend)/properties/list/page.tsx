@@ -1,24 +1,50 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { properties as initialProperties, Property } from "@/data/mockProperties";
+import { useState, useMemo, useEffect } from "react";
+import { useAppStore } from "@/store/useAppStore";
+import { useToastStore, toast } from "@/store/useToastStore";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { TableSkeleton } from "@/components/ui/Skeleton";
+import { exportToCSV } from "@/lib/exportUtils";
 import Link from "next/link";
+import { RecordDealModal } from "@/components/modals/RecordDealModal";
+import { Home } from "lucide-react";
 
 export default function PropertyList() {
-  const [properties, setProperties] = useState<Property[]>(initialProperties);
+  const { properties, comparedPropertyIds, toggleComparedPropertyId } = useAppStore();
+  const [excludedIds, setExcludedIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  const [isRecordDealOpen, setIsRecordDealOpen] = useState(false);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | undefined>(undefined);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined);
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const confirm = useToastStore((state) => state.confirm);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const activeProperties = useMemo(() => {
+    return properties.filter((p) => !excludedIds.includes(p.id));
+  }, [properties, excludedIds]);
+
   // Search filter
   const filteredProperties = useMemo(() => {
-    return properties.filter((p) =>
+    return activeProperties.filter((p) =>
       p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.type.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [properties, searchTerm]);
+  }, [activeProperties, searchTerm]);
 
   // Pagination
   const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
@@ -50,11 +76,53 @@ export default function PropertyList() {
   };
 
   // Delete handler
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this property?")) {
-      setProperties(properties.filter((p) => p.id !== id));
+  const handleDelete = async (id: string) => {
+    const ok = await confirm({
+      title: "Delete Property Listing",
+      message: "Are you sure you want to delete this property? This listing will be hidden from lists and analytics.",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+    });
+    if (ok) {
+      setExcludedIds([...excludedIds, id]);
       setSelectedIds(selectedIds.filter((item) => item !== id));
+      toast.success("Property deleted successfully.");
     }
+  };
+
+  const handleRecordDeal = (propertyId: string, agentId: string) => {
+    setSelectedPropertyId(propertyId);
+    setSelectedAgentId(agentId);
+    setIsRecordDealOpen(true);
+  };
+
+  const handleExport = () => {
+    const data = filteredProperties.map((p) => ({
+      ID: p.id,
+      Title: p.title,
+      Type: p.type,
+      Status: p.status,
+      Price: p.price,
+      Area: p.area,
+      Bedrooms: p.bedrooms,
+      Location: p.location,
+    }));
+    exportToCSV(
+      data,
+      [
+        { key: "ID", label: "ID" },
+        { key: "Title", label: "Title" },
+        { key: "Type", label: "Type" },
+        { key: "Status", label: "Status" },
+        { key: "Price", label: "Price" },
+        { key: "Area", label: "Area (sqft)" },
+        { key: "Bedrooms", label: "Bedrooms" },
+        { key: "Location", label: "Location" },
+      ],
+      "properties-export"
+    );
+    toast.success("Properties exported to CSV.");
+    setIsExportOpen(false);
   };
 
   const isAllSelectedOnPage = useMemo(() => {
@@ -67,16 +135,10 @@ export default function PropertyList() {
       {/* ── Breadcrumb & Title ─────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
+          <Breadcrumb />
           <h1 className="text-[20px] font-bold text-foreground">Listing List</h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">Real Estate Property Management</p>
         </div>
-        <ol className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-          <li>
-            <a href="/" className="hover:text-primary transition-colors">Real Estate</a>
-          </li>
-          <li><i className="ri-arrow-right-s-line text-[12px]" /></li>
-          <li className="text-primary font-medium">Listing List</li>
-        </ol>
       </div>
 
       {/* ── Metric Stat Cards (4 Columns) ─────────────────────────── */}
@@ -203,15 +265,36 @@ export default function PropertyList() {
               <button
                 type="button"
                 onClick={() => setIsExportOpen(!isExportOpen)}
-                className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground border border-border bg-muted/20 hover:bg-muted/40 px-3 py-1.5 rounded-[5px] transition-all"
+                className="flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground border border-border bg-muted/20 hover:bg-muted/40 px-3 py-1.5 rounded-[5px] transition-all cursor-pointer"
               >
-                This Month <i className="ri-arrow-down-s-line text-[14px]" />
+                Export / Import <i className="ri-arrow-down-s-line text-[14px]" />
               </button>
               {isExportOpen && (
-                <div className="absolute right-0 mt-1 w-32 bg-card border border-border rounded-[5px] shadow-lg py-1 z-15">
-                  <a href="#!" className="block px-3 py-1.5 text-[12.5px] text-foreground hover:bg-muted">Download</a>
-                  <a href="#!" className="block px-3 py-1.5 text-[12.5px] text-foreground hover:bg-muted">Export</a>
-                  <a href="#!" className="block px-3 py-1.5 text-[12.5px] text-foreground hover:bg-muted">Import</a>
+                <div className="absolute right-0 mt-1 w-36 bg-card border border-border rounded-[5px] shadow-lg py-1 z-15 text-[12.5px]">
+                  <button
+                    onClick={() => {
+                      toast.info("Downloading property templates.");
+                      setIsExportOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-muted font-medium cursor-pointer animate-in fade-in duration-75"
+                  >
+                    Template
+                  </button>
+                  <button
+                    onClick={handleExport}
+                    className="w-full text-left px-3 py-1.5 hover:bg-muted font-medium cursor-pointer"
+                  >
+                    Export CSV
+                  </button>
+                  <button
+                    onClick={() => {
+                      toast.info("Opening property import drawer.");
+                      setIsExportOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-muted font-medium cursor-pointer"
+                  >
+                    Import CSV
+                  </button>
                 </div>
               )}
             </div>
@@ -228,37 +311,51 @@ export default function PropertyList() {
         </div>
 
         {/* Responsive Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse align-middle">
-            <thead className="bg-muted/20 text-[13px] text-muted-foreground font-semibold border-b border-border">
-              <tr>
-                <th className="py-3 px-4 w-10">
-                  <input
-                    type="checkbox"
-                    checked={isAllSelectedOnPage}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/20 cursor-pointer"
-                  />
-                </th>
-                <th className="py-3 px-4 min-w-[280px]">Properties Photo & Name</th>
-                <th className="py-3 px-4">Size</th>
-                <th className="py-3 px-4">Property Type</th>
-                <th className="py-3 px-4">Rent/Sale</th>
-                <th className="py-3 px-4">Bedrooms</th>
-                <th className="py-3 px-4">Location</th>
-                <th className="py-3 px-4">Price</th>
-                <th className="py-3 px-4 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-[13.5px]">
-              {paginatedProperties.length === 0 ? (
+        {isLoading ? (
+          <TableSkeleton rows={5} cols={9} />
+        ) : filteredProperties.length === 0 ? (
+          <EmptyState
+            icon={Home}
+            title="No Properties Found"
+            description={
+              searchTerm
+                ? "No property matches your search query. Check for typos or try another search term."
+                : "No active property listings available."
+            }
+            actionLabel={searchTerm ? "Clear Search" : "Add Property"}
+            onAction={() => {
+              if (searchTerm) {
+                setSearchTerm("");
+              } else {
+                window.location.href = "/properties/add";
+              }
+            }}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse align-middle">
+              <thead className="bg-muted/20 text-[13px] text-muted-foreground font-semibold border-b border-border">
                 <tr>
-                  <td colSpan={9} className="py-10 text-center text-muted-foreground">
-                    No properties match your search term.
-                  </td>
+                  <th className="py-3 px-4 w-10">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelectedOnPage}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/20 cursor-pointer"
+                    />
+                  </th>
+                  <th className="py-3 px-4 min-w-[280px]">Properties Photo & Name</th>
+                  <th className="py-3 px-4">Size</th>
+                  <th className="py-3 px-4">Property Type</th>
+                  <th className="py-3 px-4">Rent/Sale</th>
+                  <th className="py-3 px-4">Bedrooms</th>
+                  <th className="py-3 px-4">Location</th>
+                  <th className="py-3 px-4">Price</th>
+                  <th className="py-3 px-4 text-right">Action</th>
                 </tr>
-              ) : (
-                paginatedProperties.map((p) => {
+              </thead>
+              <tbody className="divide-y divide-border text-[13.5px]">
+                {paginatedProperties.map((p) => {
                   const isSelected = selectedIds.includes(p.id);
                   const isRent = p.status === "For Rent";
                   const isSale = p.status === "For Sale";
@@ -312,9 +409,38 @@ export default function PropertyList() {
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {p.status !== "Sold" && (
+                            <button
+                              type="button"
+                              onClick={() => handleRecordDeal(p.id, p.agentId)}
+                              className="h-7 w-7 rounded bg-[#0acf97]/15 hover:bg-[#0acf97] text-[#0acf97] hover:text-white flex items-center justify-center transition-all"
+                              title="Record Closed Deal / Commission"
+                            >
+                              <i className="ri-exchange-dollar-line text-[16px]" />
+                            </button>
+                          )}
                           <Link href={`/properties/${p.id}`} className="h-7 w-7 rounded bg-muted hover:bg-muted-foreground/10 text-foreground flex items-center justify-center transition-all" title="View">
                             <iconify-icon icon="solar:eye-broken" className="text-[16px]" />
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              toggleComparedPropertyId(p.id);
+                              if (comparedPropertyIds.includes(p.id)) {
+                                toast.success("Removed from comparison.");
+                              } else {
+                                toast.success("Added to comparison.");
+                              }
+                            }}
+                            className={`h-7 w-7 rounded flex items-center justify-center transition-all ${
+                              comparedPropertyIds.includes(p.id)
+                                ? "bg-primary text-white scale-105"
+                                : "bg-primary/10 hover:bg-primary text-primary hover:text-white"
+                            }`}
+                            title="Compare"
+                          >
+                            <i className="ri-git-compare-line text-[16px]" />
+                          </button>
                           <Link href="/properties/add" className="h-7 w-7 rounded bg-[#604ae3]/10 hover:bg-[#604ae3] text-[#604ae3] hover:text-white flex items-center justify-center transition-all" title="Edit">
                             <iconify-icon icon="solar:pen-2-broken" className="text-[16px]" />
                           </Link>
@@ -330,11 +456,11 @@ export default function PropertyList() {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Table Footer Pagination */}
         {filteredProperties.length > 0 && (
@@ -394,6 +520,13 @@ export default function PropertyList() {
         )}
 
       </div>
+      
+      <RecordDealModal
+        isOpen={isRecordDealOpen}
+        onClose={() => setIsRecordDealOpen(false)}
+        defaultPropertyId={selectedPropertyId}
+        defaultAgentId={selectedAgentId}
+      />
     </div>
   );
 }

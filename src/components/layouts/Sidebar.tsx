@@ -37,6 +37,7 @@ const navigation: { section: string; items: NavItem[] }[] = [
         children: [
           { title: "Property Grid", href: "/properties/grid" },
           { title: "Property List", href: "/properties/list" },
+          { title: "Property Map", href: "/properties/map" },
           { title: "Property Details", href: "/properties/1" },
           { title: "Add Property", href: "/properties/add" },
           { title: "Pocket Listings", href: "/properties/pocket-listings" },
@@ -64,7 +65,14 @@ const navigation: { section: string; items: NavItem[] }[] = [
         ],
       },
       { title: "Orders", href: "/orders", icon: "ri-shopping-cart-line" },
-      { title: "Transactions", href: "/transactions", icon: "ri-exchange-dollar-line" },
+      {
+        title: "Transactions",
+        icon: "ri-exchange-dollar-line",
+        children: [
+          { title: "Ledger List", href: "/transactions" },
+          { title: "Deals Pipeline", href: "/transactions/pipeline" },
+        ],
+      },
       { title: "Reviews", href: "/reviews", icon: "ri-chat-quote-line" },
       { title: "Chats", href: "/chats", icon: "ri-discuss-line" },
       { title: "Inbox", href: "/inbox", icon: "ri-mail-line" },
@@ -107,7 +115,7 @@ const navigation: { section: string; items: NavItem[] }[] = [
 ];
 
 export function Sidebar() {
-  const { sidebarOpen, setSidebarOpen, menuColor, sidebarSize, agencyName } = useAppStore();
+  const { sidebarOpen, setSidebarOpen, menuColor, agencyName } = useAppStore();
   const pathname = usePathname();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
     Dashboards: true,

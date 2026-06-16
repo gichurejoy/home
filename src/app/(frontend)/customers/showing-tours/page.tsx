@@ -249,7 +249,7 @@ export default function ShowingTours() {
                     <div>
                       <h6 className="text-[13.5px] font-bold text-foreground">{fb.propertyTitle}</h6>
                       <p className="text-[12.5px] text-muted-foreground mt-1">
-                        <strong>Client Comments:</strong> "{fb.notes}"
+                        <strong>Client Comments:</strong> &quot;{fb.notes}&quot;
                       </p>
                     </div>
                     <div className="flex flex-col md:items-end gap-1.5 shrink-0">
@@ -399,7 +399,7 @@ export default function ShowingTours() {
                           <button
                             key={btn.key}
                             type="button"
-                            onClick={() => setPhoneRating(btn.key as any)}
+                            onClick={() => setPhoneRating(btn.key as "love" | "like" | "neutral" | "dislike")}
                             className={`py-2 px-3 rounded-[6px] text-[12px] font-bold transition-all border flex items-center justify-center gap-1.5 ${
                               phoneRating === btn.key
                                 ? "bg-primary text-white border-primary shadow"

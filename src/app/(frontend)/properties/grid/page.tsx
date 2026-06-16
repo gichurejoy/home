@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { properties, Property } from "@/data/mockProperties";
 import Link from "next/link";
+import { useAppStore } from "@/store/useAppStore";
+import { toast } from "@/store/useToastStore";
 
 export default function PropertyGrid() {
+  const { comparedPropertyIds, toggleComparedPropertyId } = useAppStore();
   // Saved properties state (for bookmark toggle)
   const [savedProperties, setSavedProperties] = useState<string[]>([]);
+
+  const applyFilters = () => {
+    toast.success("Filters applied successfully.");
+  };
 
   // Search & Filter state
   const [location, setLocation] = useState<string>("");
@@ -17,9 +24,6 @@ export default function PropertyGrid() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>(["All Properties"]);
   const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
 
-  // Filtered properties state
-  const [filteredProperties, setFilteredProperties] = useState<Property[]>(properties);
-
   // Toggle bookmark function
   const toggleBookmark = (id: string) => {
     if (savedProperties.includes(id)) {
@@ -29,8 +33,8 @@ export default function PropertyGrid() {
     }
   };
 
-  // Run filters
-  const applyFilters = () => {
+  // Filtered properties computed using useMemo
+  const filteredProperties = useMemo(() => {
     let result = [...properties];
 
     // 1. Location
@@ -89,12 +93,7 @@ export default function PropertyGrid() {
       });
     }
 
-    setFilteredProperties(result);
-  };
-
-  // Apply filters automatically on state change
-  useEffect(() => {
-    applyFilters();
+    return result;
   }, [location, placeType, minCost, maxCost, selectedBHKs, selectedTypes, selectedFacilities]);
 
   const toggleBHK = (bhk: string) => {
@@ -139,7 +138,7 @@ export default function PropertyGrid() {
         </div>
         <ol className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
           <li>
-            <a href="/" className="hover:text-primary transition-colors">Real Estate</a>
+            <Link href="/" className="hover:text-primary transition-colors">Real Estate</Link>
           </li>
           <li><i className="ri-arrow-right-s-line text-[12px]" /></li>
           <li className="text-primary font-medium">Listing Grid</li>
@@ -366,7 +365,7 @@ export default function PropertyGrid() {
                       />
                       
                       {/* Bookmark Icon button */}
-                      <span className="absolute top-2.5 left-2.5 z-10">
+                      <span className="absolute top-2.5 left-2.5 z-10 flex gap-1.5">
                         <button
                           type="button"
                           onClick={() => toggleBookmark(p.id)}
@@ -378,6 +377,16 @@ export default function PropertyGrid() {
                         >
                           <iconify-icon icon={isSaved ? "solar:bookmark-bold" : "solar:bookmark-broken"} className="text-[18px]" />
                         </button>
+                        
+                        <label className="flex items-center gap-1 bg-card/90 dark:bg-[#1e293b]/90 backdrop-blur-sm border border-border px-2 py-0.5 rounded cursor-pointer select-none text-[11px] font-bold text-foreground">
+                          <input
+                            type="checkbox"
+                            checked={comparedPropertyIds.includes(p.id)}
+                            onChange={() => toggleComparedPropertyId(p.id)}
+                            className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                          />
+                          Compare
+                        </label>
                       </span>
 
                       {/* Status badge */}

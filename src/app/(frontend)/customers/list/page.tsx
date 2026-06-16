@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { customers as initialCustomers, Customer } from "@/data/mockCustomers";
+import { useToastStore, toast } from "@/store/useToastStore";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { TableSkeleton } from "@/components/ui/Skeleton";
+import { exportToCSV } from "@/lib/exportUtils";
 import Link from "next/link";
+import { Users } from "lucide-react";
 
 export default function CustomerList() {
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
@@ -10,7 +16,18 @@ export default function CustomerList() {
   const [selectedStatus, setSelectedStatus] = useState<string>("All");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
   const itemsPerPage = 6;
+
+  const confirm = useToastStore((state) => state.confirm);
+
+  // Simulate loading state
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Search and filter logic
   const filteredCustomers = useMemo(() => {
@@ -60,19 +77,56 @@ export default function CustomerList() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this customer?")) {
+  const handleDelete = async (id: string) => {
+    const ok = await confirm({
+      title: "Delete Customer",
+      message: "Are you sure you want to delete this customer? All associated history will be hidden.",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+    });
+    if (ok) {
       setCustomers(customers.filter((c) => c.id !== id));
       setSelectedRows((prev) => prev.filter((rowId) => rowId !== id));
+      toast.success("Customer removed successfully.");
     }
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedRows.length === 0) return;
-    if (confirm(`Are you sure you want to delete the ${selectedRows.length} selected customers?`)) {
+    const ok = await confirm({
+      title: "Delete Multiple Customers",
+      message: `Are you sure you want to delete the ${selectedRows.length} selected customers?`,
+      confirmText: `Delete ${selectedRows.length} Customers`,
+      cancelText: "Cancel",
+    });
+    if (ok) {
       setCustomers(customers.filter((c) => !selectedRows.includes(c.id)));
       setSelectedRows([]);
+      toast.success("Selected customers deleted successfully.");
     }
+  };
+
+  const handleExport = () => {
+    const headers = [
+      { key: "id" as const, label: "Customer ID" },
+      { key: "name" as const, label: "Name" },
+      { key: "email" as const, label: "Email" },
+      { key: "phone" as const, label: "Phone" },
+      { key: "propertyType" as const, label: "Property Type" },
+      { key: "listStatus" as const, label: "Status" },
+      { key: "ownPropertiesCount" as const, label: "Properties Owned" },
+      { key: "investOnProperty" as const, label: "Total Invested" },
+    ];
+    const success = exportToCSV(filteredCustomers, headers, "customers");
+    if (success) {
+      toast.success("Customers list exported to CSV successfully.");
+    } else {
+      toast.error("Failed to export customer records.");
+    }
+  };
+
+  const handleMoreSettings = () => {
+    toast.info("More customer settings panel is in development.");
   };
 
   return (
@@ -80,16 +134,12 @@ export default function CustomerList() {
       {/* ── Breadcrumb & Title ─────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
+          <Breadcrumb />
           <h1 className="text-[20px] font-bold text-foreground">Customer List</h1>
-          <p className="text-[13px] text-muted-foreground mt-0.5">Manage and organize your real estate customers</p>
+          <p className="text-[13px] text-muted-foreground mt-0.5">
+            Manage and organize your real estate customers
+          </p>
         </div>
-        <ol className="flex items-center text-[13px] text-muted-foreground">
-          <li>
-            <Link href="/customers/grid" className="hover:text-primary transition-colors">Customers</Link>
-          </li>
-          <li className="mx-1 text-muted-foreground/60">&rsaquo;</li>
-          <li className="text-primary font-medium">Customer List</li>
-        </ol>
       </div>
 
       {/* ── Search and Metric Actions Row ─────────────────────────── */}
@@ -97,7 +147,7 @@ export default function CustomerList() {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
             {/* Search Input */}
-            <div className="position-relative flex-1 max-w-md">
+            <div className="relative flex-1 max-w-md">
               <input
                 type="search"
                 className="w-full bg-background border border-border rounded-[5px] pl-9 pr-4 py-1.5 text-[13px] focus:outline-none focus:border-primary transition-colors text-foreground placeholder-muted-foreground"
@@ -147,7 +197,7 @@ export default function CustomerList() {
             {selectedRows.length > 0 && (
               <button
                 onClick={handleBulkDelete}
-                className="bg-[#ff5b5b]/10 text-[#ff5b5b] hover:bg-[#ff5b5b] hover:text-white text-[13px] font-bold px-3 py-1.5 rounded-[5px] flex items-center gap-1.5 transition-all border border-[#ff5b5b]/20"
+                className="bg-[#ff5b5b]/10 text-[#ff5b5b] hover:bg-[#ff5b5b] hover:text-white text-[13px] font-bold px-3 py-1.5 rounded-[5px] flex items-center gap-1.5 transition-all border border-[#ff5b5b]/20 cursor-pointer"
               >
                 <i className="ri-trash-line text-[15px]" /> Delete Selected ({selectedRows.length})
               </button>
@@ -160,10 +210,8 @@ export default function CustomerList() {
               <i className="ri-grid-fill" />
             </Link>
             <button
-              onClick={() => {
-                alert("More settings drawer placeholder");
-              }}
-              className="border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-[13px] font-bold h-9 px-3 rounded-[5px] flex items-center gap-1 transition-colors"
+              onClick={handleMoreSettings}
+              className="border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-[13px] font-bold h-9 px-3 rounded-[5px] flex items-center gap-1 transition-colors cursor-pointer"
             >
               <i className="ri-settings-2-line" /> More Settings
             </button>
@@ -178,55 +226,69 @@ export default function CustomerList() {
       </div>
 
       {/* ── All Customers List Card ──────────────────────────────── */}
-      <div className="bg-card border border-border rounded-[8px] shadow-[0_0_35px_rgba(154,161,171,0.05)] overflow-hidden">
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-          <h4 className="font-bold text-[15.5px] text-foreground">All Customer List</h4>
-          <div className="dropdown">
-            <button
-              onClick={() => alert("Actions menu placeholder (Download/Export/Import)")}
-              className="btn btn-sm border border-border hover:bg-muted text-muted-foreground hover:text-foreground rounded px-3.5 py-1.5 text-[12px] font-bold flex items-center gap-1.5"
-            >
-              This Month <i className="ri-arrow-down-s-line" />
-            </button>
+      {isLoading ? (
+        <TableSkeleton rows={5} cols={9} />
+      ) : filteredCustomers.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No Customers Found"
+          description={
+            searchTerm
+              ? "There are no customers that match your criteria. Try another search term."
+              : "No customers listed in this category."
+          }
+          actionLabel={searchTerm ? "Clear Filters" : "Add Customer"}
+          onAction={() => {
+            if (searchTerm) {
+              setSearchTerm("");
+            } else {
+              window.location.href = "/customers/add";
+            }
+          }}
+        />
+      ) : (
+        <div className="bg-card border border-border rounded-[8px] shadow-[0_0_35px_rgba(154,161,171,0.05)] overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+            <h4 className="font-bold text-[15.5px] text-foreground">All Customer List</h4>
+            <div>
+              <button
+                onClick={handleExport}
+                className="border border-border hover:bg-muted text-muted-foreground hover:text-foreground rounded px-3 py-1.5 text-[12px] font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <i className="ri-download-2-line" /> Export CSV
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse align-middle text-nowrap">
-            <thead className="bg-[#f8f9fa] dark:bg-[#1f293d] border-b border-border text-[12.5px] text-muted-foreground font-bold uppercase tracking-wider">
-              <tr>
-                <th className="px-5 py-3.5 w-10">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="rounded border-border text-[#604ae3] focus:ring-[#604ae3] h-4 w-4"
-                      onChange={handleSelectAll}
-                      checked={
-                        paginatedCustomers.length > 0 &&
-                        paginatedCustomers.every((c) => selectedRows.includes(c.id))
-                      }
-                    />
-                  </div>
-                </th>
-                <th className="px-5 py-3.5">Customer Photo & Name</th>
-                <th className="px-5 py-3.5">Email</th>
-                <th className="px-5 py-3.5">Contact</th>
-                <th className="px-5 py-3.5">Property Type</th>
-                <th className="px-5 py-3.5">Interested Properties</th>
-                <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5">Last Contacted</th>
-                <th className="px-5 py-3.5 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="text-[13.5px] divide-y divide-border text-foreground">
-              {paginatedCustomers.length === 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse align-middle text-nowrap">
+              <thead className="bg-[#f8f9fa] dark:bg-[#1f293d] border-b border-border text-[12.5px] text-muted-foreground font-bold uppercase tracking-wider">
                 <tr>
-                  <td colSpan={9} className="px-5 py-12 text-center text-muted-foreground">
-                    No customers found matching the search criteria.
-                  </td>
+                  <th className="px-5 py-3.5 w-10">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="rounded border-border text-[#604ae3] focus:ring-[#604ae3] h-4 w-4"
+                        onChange={handleSelectAll}
+                        checked={
+                          paginatedCustomers.length > 0 &&
+                          paginatedCustomers.every((c) => selectedRows.includes(c.id))
+                        }
+                      />
+                    </div>
+                  </th>
+                  <th className="px-5 py-3.5">Customer Photo & Name</th>
+                  <th className="px-5 py-3.5">Email</th>
+                  <th className="px-5 py-3.5">Contact</th>
+                  <th className="px-5 py-3.5">Property Type</th>
+                  <th className="px-5 py-3.5">Interested Properties</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5">Last Contacted</th>
+                  <th className="px-5 py-3.5 text-right">Action</th>
                 </tr>
-              ) : (
-                paginatedCustomers.map((customer) => {
+              </thead>
+              <tbody className="text-[13.5px] divide-y divide-border text-foreground">
+                {paginatedCustomers.map((customer) => {
                   const isChecked = selectedRows.includes(customer.id);
                   return (
                     <tr
@@ -251,6 +313,9 @@ export default function CustomerList() {
                             src={customer.avatar}
                             alt={customer.name}
                             className="w-9 h-9 rounded-full object-cover border border-border"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${customer.name}`;
+                            }}
                           />
                           <Link
                             href={`/customers/${customer.id}`}
@@ -260,16 +325,17 @@ export default function CustomerList() {
                           </Link>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-muted-foreground">
-                        {customer.email}
-                      </td>
+                      <td className="px-5 py-3 text-muted-foreground">{customer.email}</td>
                       <td className="px-5 py-3 text-muted-foreground font-medium">
                         {customer.phone}
                       </td>
                       <td className="px-5 py-3 text-foreground font-semibold">
                         {customer.propertyType}
                       </td>
-                      <td className="px-5 py-3 text-muted-foreground max-w-[200px] truncate" title={customer.interestedProperties.join(", ")}>
+                      <td
+                        className="px-5 py-3 text-muted-foreground max-w-[200px] truncate"
+                        title={customer.interestedProperties.join(", ")}
+                      >
                         {customer.interestedProperties.join(", ")}
                       </td>
                       <td className="px-5 py-3">
@@ -286,7 +352,7 @@ export default function CustomerList() {
                         </span>
                       </td>
                       <td className="px-5 py-3 text-muted-foreground">
-                        25/03/2023 {/* Static contacted date similar to HTML, or we can use custom date */}
+                        25/03/2023 {/* Static contacted date */}
                       </td>
                       <td className="px-5 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -295,84 +361,84 @@ export default function CustomerList() {
                             className="h-8 w-8 rounded bg-secondary hover:bg-secondary-foreground/10 text-secondary-foreground flex items-center justify-center transition-colors text-[16px]"
                             title="View Overview"
                           >
-                            <iconify-icon icon="solar:eye-broken" />
+                            <i className="ri-eye-line text-[15px]" />
                           </Link>
                           <Link
                             href="/customers/add"
                             className="h-8 w-8 rounded bg-soft-primary text-primary hover:bg-[#604ae3] hover:text-white flex items-center justify-center transition-all text-[16px]"
                             title="Edit"
                           >
-                            <iconify-icon icon="solar:pen-2-broken" />
+                            <i className="ri-edit-line text-[15px]" />
                           </Link>
                           <button
                             onClick={() => handleDelete(customer.id)}
-                            className="h-8 w-8 rounded bg-soft-danger text-danger hover:bg-[#ff5b5b] hover:text-white flex items-center justify-center transition-all text-[16px]"
+                            className="h-8 w-8 rounded bg-soft-danger text-danger hover:bg-[#ff5b5b] hover:text-white flex items-center justify-center transition-all text-[16px] cursor-pointer"
                             title="Delete"
                           >
-                            <iconify-icon icon="solar:trash-bin-minimalistic-2-broken" />
+                            <i className="ri-delete-bin-line text-[15px]" />
                           </button>
                         </div>
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
 
-        {/* ── Table Pagination Footer ─────────────────────────────── */}
-        {filteredCustomers.length > 0 && (
-          <div className="px-5 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-[13px] text-muted-foreground">
-              Showing <span className="font-semibold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
-              <span className="font-semibold text-foreground">
-                {Math.min(currentPage * itemsPerPage, filteredCustomers.length)}
-              </span>{" "}
-              of <span className="font-semibold text-foreground">{filteredCustomers.length}</span> Customers
-            </p>
-            <nav className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled={currentPage === 1}
-                onClick={() => handlePageChange(currentPage - 1)}
-                className={`text-[12.5px] border border-border px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
-                  currentPage === 1
-                    ? "text-muted-foreground/40 cursor-not-allowed"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                Previous
-              </button>
-              {Array.from({ length: totalPages }).map((_, idx) => (
+          {/* ── Table Pagination Footer ─────────────────────────────── */}
+          {filteredCustomers.length > 0 && (
+            <div className="px-5 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-[13px] text-muted-foreground">
+                Showing <span className="font-semibold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
+                <span className="font-semibold text-foreground">
+                  {Math.min(currentPage * itemsPerPage, filteredCustomers.length)}
+                </span>{" "}
+                of <span className="font-semibold text-foreground">{filteredCustomers.length}</span> Customers
+              </p>
+              <nav className="flex items-center gap-1">
                 <button
-                  key={idx}
-                  onClick={() => handlePageChange(idx + 1)}
-                  className={`h-8 w-8 rounded-[5px] text-[12.5px] font-bold transition-all ${
-                    currentPage === idx + 1
-                      ? "bg-[#604ae3] text-white"
-                      : "text-muted-foreground border border-border hover:bg-muted"
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  className={`text-[12.5px] border border-border px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
+                    currentPage === 1
+                      ? "text-muted-foreground/40 cursor-not-allowed"
+                      : "text-muted-foreground hover:bg-muted cursor-pointer"
                   }`}
                 >
-                  {idx + 1}
+                  Previous
                 </button>
-              ))}
-              <button
-                type="button"
-                disabled={currentPage === totalPages}
-                onClick={() => handlePageChange(currentPage + 1)}
-                className={`text-[12.5px] border border-border px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
-                  currentPage === totalPages
-                    ? "text-muted-foreground/40 cursor-not-allowed"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                Next
-              </button>
-            </nav>
-          </div>
-        )}
-      </div>
+                {Array.from({ length: totalPages }).map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handlePageChange(idx + 1)}
+                    className={`h-8 w-8 rounded-[5px] text-[12.5px] font-bold transition-all cursor-pointer ${
+                      currentPage === idx + 1
+                        ? "bg-[#604ae3] text-white"
+                        : "text-muted-foreground border border-border hover:bg-muted"
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  className={`text-[12.5px] border border-border px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
+                    currentPage === totalPages
+                      ? "text-muted-foreground/40 cursor-not-allowed"
+                      : "text-muted-foreground hover:bg-muted cursor-pointer"
+                  }`}
+                >
+                  Next
+                </button>
+              </nav>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

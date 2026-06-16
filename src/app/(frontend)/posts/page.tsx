@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { mockPosts, BlogPost } from "@/data/mockPosts";
+import { useToastStore, toast } from "@/store/useToastStore";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import Link from "next/link";
 
 export default function BlogGridPage() {
@@ -30,10 +32,19 @@ export default function BlogGridPage() {
     });
   }, [posts, searchTerm, selectedCategory]);
 
-  const handleDeletePost = (id: string, e: React.MouseEvent) => {
+  const confirm = useToastStore((state) => state.confirm);
+
+  const handleDeletePost = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
-    if (confirm("Are you sure you want to delete this blog post?")) {
+    const ok = await confirm({
+      title: "Delete Blog Post",
+      message: "Are you sure you want to delete this blog post? This action cannot be undone.",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+    });
+    if (ok) {
       setPosts(posts.filter((p) => p.id !== id));
+      toast.success("Blog post deleted successfully.");
     }
   };
 
@@ -42,16 +53,10 @@ export default function BlogGridPage() {
       {/* ── Breadcrumb & Title ─────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
+          <Breadcrumb />
           <h1 className="text-[20px] font-bold text-foreground">Blog Grid</h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">Fresh articles, real estate news, and staging advice</p>
         </div>
-        <ol className="flex items-center text-[13px] text-muted-foreground">
-          <li>
-            <Link href="/" className="hover:text-primary transition-colors">Dashboard</Link>
-          </li>
-          <li className="mx-1 text-muted-foreground/60">&rsaquo;</li>
-          <li className="text-primary font-medium">Blog Grid</li>
-        </ol>
       </div>
 
       {/* ── Search & Filter Controls ───────────────────────────────── */}

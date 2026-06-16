@@ -18,7 +18,7 @@ export function MiniSparkChart({ data, color, height = 72, tooltipLabel = "Value
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   if (!mounted) {
@@ -32,6 +32,12 @@ export function MiniSparkChart({ data, color, height = 72, tooltipLabel = "Value
   // Highlight the max bar with the active color, rest get muted
   const maxIdx = data.indexOf(Math.max(...data));
   const colors = data.map((_, i) => (i === maxIdx ? color : mutedColor));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hoverFilter: any = {
+    type: "darken",
+    value: 0.85,
+  };
 
   const options: ApexCharts.ApexOptions = {
     chart: {
@@ -53,10 +59,7 @@ export function MiniSparkChart({ data, color, height = 72, tooltipLabel = "Value
     },
     states: {
       hover: {
-        filter: {
-          type: "darken",
-          value: 0.85,
-        } as any,
+        filter: hoverFilter,
       },
     },
     grid: {

@@ -1,7 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { mockTransactions, Transaction } from "@/data/mockTransactions";
+import { useToastStore, toast } from "@/store/useToastStore";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { TableSkeleton } from "@/components/ui/Skeleton";
+import { exportToCSV } from "@/lib/exportUtils";
+import { InvoiceModal } from "@/components/modals/InvoiceModal";
+import { DollarSign } from "lucide-react";
 import Link from "next/link";
 
 export default function TransactionsPage() {
@@ -11,7 +18,19 @@ export default function TransactionsPage() {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [activeDetailsTx, setActiveDetailsTx] = useState<Transaction | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const itemsPerPage = 6;
+
+  const confirm = useToastStore((state) => state.confirm);
+  const prompt = useToastStore((state) => state.prompt);
+
+  // Simulate skeleton loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Search and filter logic
   const filteredTransactions = useMemo(() => {
@@ -59,26 +78,93 @@ export default function TransactionsPage() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this transaction record?")) {
+  const handleDelete = async (id: string) => {
+    const ok = await confirm({
+      title: "Delete Transaction Record",
+      message: "Are you sure you want to delete this transaction record? This operation cannot be undone.",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+    });
+    if (ok) {
       setTransactions(transactions.filter((tx) => tx.id !== id));
       setSelectedRows((prev) => prev.filter((rowId) => rowId !== id));
+      toast.success("Transaction record deleted successfully.");
     }
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedRows.length === 0) return;
-    if (confirm(`Are you sure you want to delete the ${selectedRows.length} selected transaction records?`)) {
+    const ok = await confirm({
+      title: "Delete Multiple Transactions",
+      message: `Are you sure you want to delete the ${selectedRows.length} selected transaction records?`,
+      confirmText: `Delete ${selectedRows.length} Records`,
+      cancelText: "Cancel",
+    });
+    if (ok) {
       setTransactions(transactions.filter((tx) => !selectedRows.includes(tx.id)));
       setSelectedRows([]);
+      toast.success("Selected transaction records deleted successfully.");
     }
+  };
+
+  const handleExport = () => {
+    const headers = [
+      { key: "id" as const, label: "Transaction ID" },
+      { key: "customerName" as const, label: "Customer" },
+      { key: "date" as const, label: "Date" },
+      { key: "amount" as const, label: "Amount" },
+      { key: "paymentMethod" as const, label: "Payment Method" },
+      { key: "paymentType" as const, label: "Payment Type" },
+      { key: "cardNumber" as const, label: "Card/Account Details" },
+      { key: "agentName" as const, label: "Agent" },
+      { key: "propertyAddress" as const, label: "Property Address" },
+      { key: "status" as const, label: "Status" },
+    ];
+    const success = exportToCSV<any>(filteredTransactions, headers, "transactions");
+    if (success) {
+      toast.success("CSV file downloaded successfully.");
+    } else {
+      toast.error("Failed to export transaction data.");
+    }
+  };
+
+  const handleEditStatus = async (tx: Transaction) => {
+    const newStatus = await prompt({
+      title: "Edit Transaction Status",
+      message: "Change status (Completed/Pending/Canceled):",
+      defaultValue: tx.status,
+      placeholder: "Completed, Pending, or Canceled",
+    });
+
+    if (newStatus === null) return; // User cancelled
+
+    const validStatuses = ["Completed", "Pending", "Canceled"];
+    const normalizedStatus = validStatuses.find(
+      (s) => s.toLowerCase() === newStatus.trim().toLowerCase()
+    );
+
+    if (normalizedStatus) {
+      setTransactions(transactions.map((t) => (t.id === tx.id ? { ...t, status: normalizedStatus as Transaction['status'] } : t)));
+      toast.success(`Transaction status updated to ${normalizedStatus}.`);
+    } else {
+      toast.error("Invalid status. Please enter Completed, Pending, or Canceled.");
+    }
+  };
+
+  const handleOptionsPlaceholder = () => {
+    confirm({
+      title: "Commissions and Analytics Options",
+      message: "This menu provides settings for customizing brokerage split structures, exporting statements, and configuring automated tax reports.\n\nThis feature is currently simulated in the frontend.",
+      confirmText: "Understood",
+      cancelText: "",
+    });
   };
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(value);
   };
 
@@ -87,16 +173,12 @@ export default function TransactionsPage() {
       {/* ── Breadcrumb & Title ─────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
+          <Breadcrumb />
           <h1 className="text-[20px] font-bold text-foreground">Transactions</h1>
-          <p className="text-[13px] text-muted-foreground mt-0.5">Track financial operations, commissions, and payout records</p>
+          <p className="text-[13px] text-muted-foreground mt-0.5">
+            Track financial operations, commissions, and brokerage payout records
+          </p>
         </div>
-        <ol className="flex items-center text-[13px] text-muted-foreground">
-          <li>
-            <Link href="/" className="hover:text-primary transition-colors">Dashboard</Link>
-          </li>
-          <li className="mx-1 text-muted-foreground/60">&rsaquo;</li>
-          <li className="text-primary font-medium">Transactions</li>
-        </ol>
       </div>
 
       {/* ── Search and Metric Actions Row ─────────────────────────── */}
@@ -154,16 +236,27 @@ export default function TransactionsPage() {
             {selectedRows.length > 0 && (
               <button
                 onClick={handleBulkDelete}
-                className="bg-[#ff5b5b]/10 text-[#ff5b5b] hover:bg-[#ff5b5b] hover:text-white text-[13px] font-bold px-3 py-1.5 rounded-[5px] flex items-center gap-1.5 transition-all border border-[#ff5b5b]/20"
+                className="bg-[#ff5b5b]/10 text-[#ff5b5b] hover:bg-[#ff5b5b] hover:text-white text-[13px] font-bold px-3 py-1.5 rounded-[5px] flex items-center gap-1.5 transition-all border border-[#ff5b5b]/20 cursor-pointer"
               >
                 <i className="ri-trash-line text-[15px]" /> Delete Selected ({selectedRows.length})
               </button>
             )}
+            <Link
+              href="/transactions/pipeline"
+              className="bg-[#604ae3] hover:bg-[#503bc7] text-white text-[13px] font-bold h-9 px-3 rounded-[5px] flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <i className="ri-git-merge-line" /> Pipeline View
+            </Link>
             <button
-              onClick={() => {
-                alert("Financial reports generation dashboard placeholder.");
-              }}
-              className="border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-[13px] font-bold h-9 px-3 rounded-[5px] flex items-center gap-1 transition-colors"
+              onClick={handleExport}
+              disabled={filteredTransactions.length === 0}
+              className="border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-[13px] font-bold h-9 px-3 rounded-[5px] flex items-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <i className="ri-download-2-line" /> Export CSV
+            </button>
+            <button
+              onClick={handleOptionsPlaceholder}
+              className="border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-[13px] font-bold h-9 px-3 rounded-[5px] flex items-center gap-1 transition-colors cursor-pointer"
             >
               <i className="ri-settings-3-line" /> Options
             </button>
@@ -172,48 +265,56 @@ export default function TransactionsPage() {
       </div>
 
       {/* ── Transactions Table List ──────────────────────────────── */}
-      <div className="bg-card border border-border rounded-[8px] shadow-[0_0_35px_rgba(154,161,171,0.05)] overflow-hidden">
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-          <h4 className="font-bold text-[15.5px] text-foreground">All Transactions List</h4>
-        </div>
+      {isLoading ? (
+        <TableSkeleton rows={5} cols={10} />
+      ) : filteredTransactions.length === 0 ? (
+        <EmptyState
+          icon={DollarSign}
+          title="No Transactions Found"
+          description={
+            searchTerm
+              ? "There are no transactions that match your search filters. Try using a different keyword."
+              : "No transactions found in this state."
+          }
+          actionLabel={searchTerm ? "Clear Search" : undefined}
+          onAction={searchTerm ? () => setSearchTerm("") : undefined}
+        />
+      ) : (
+        <div className="bg-card border border-border rounded-[8px] shadow-[0_0_35px_rgba(154,161,171,0.05)] overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+            <h4 className="font-bold text-[15.5px] text-foreground">All Transactions List</h4>
+          </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse align-middle text-nowrap">
-            <thead className="bg-[#f8f9fa] dark:bg-[#1f293d] border-b border-border text-[12.5px] text-muted-foreground font-bold uppercase tracking-wider">
-              <tr>
-                <th className="px-5 py-3.5 w-10">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="rounded border-border text-[#604ae3] focus:ring-[#604ae3] h-4 w-4"
-                      onChange={handleSelectAll}
-                      checked={
-                        paginatedTransactions.length > 0 &&
-                        paginatedTransactions.every((tx) => selectedRows.includes(tx.id))
-                      }
-                    />
-                  </div>
-                </th>
-                <th className="px-5 py-3.5">Transactions ID</th>
-                <th className="px-5 py-3.5">Customer Photo & Name</th>
-                <th className="px-5 py-3.5">Date</th>
-                <th className="px-5 py-3.5">Amount</th>
-                <th className="px-5 py-3.5">Payment Method</th>
-                <th className="px-5 py-3.5">Agent Name</th>
-                <th className="px-5 py-3.5">Invested Property</th>
-                <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="text-[13.5px] divide-y divide-border text-foreground">
-              {paginatedTransactions.length === 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse align-middle text-nowrap">
+              <thead className="bg-[#f8f9fa] dark:bg-[#1f293d] border-b border-border text-[12.5px] text-muted-foreground font-bold uppercase tracking-wider">
                 <tr>
-                  <td colSpan={10} className="px-5 py-12 text-center text-muted-foreground">
-                    No transactions found matching the search criteria.
-                  </td>
+                  <th className="px-5 py-3.5 w-10">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="rounded border-border text-[#604ae3] focus:ring-[#604ae3] h-4 w-4"
+                        onChange={handleSelectAll}
+                        checked={
+                          paginatedTransactions.length > 0 &&
+                          paginatedTransactions.every((tx) => selectedRows.includes(tx.id))
+                        }
+                      />
+                    </div>
+                  </th>
+                  <th className="px-5 py-3.5">Transactions ID</th>
+                  <th className="px-5 py-3.5">Customer Photo & Name</th>
+                  <th className="px-5 py-3.5">Date</th>
+                  <th className="px-5 py-3.5">Amount</th>
+                  <th className="px-5 py-3.5">Payment Method</th>
+                  <th className="px-5 py-3.5">Agent Name</th>
+                  <th className="px-5 py-3.5">Invested Property</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5 text-right">Action</th>
                 </tr>
-              ) : (
-                paginatedTransactions.map((tx) => {
+              </thead>
+              <tbody className="text-[13.5px] divide-y divide-border text-foreground">
+                {paginatedTransactions.map((tx) => {
                   const isChecked = selectedRows.includes(tx.id);
                   return (
                     <tr
@@ -253,27 +354,30 @@ export default function TransactionsPage() {
                           <span className="font-semibold text-foreground">{tx.customerName}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-muted-foreground">
-                        {tx.date}
-                      </td>
+                      <td className="px-5 py-3 text-muted-foreground">{tx.date}</td>
                       <td className="px-5 py-3 text-foreground font-bold">
                         {formatPrice(tx.amount)}
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="h-6 w-9 rounded bg-[#f4f6fb] dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold border border-border overflow-hidden">
+                          <div className="h-6 w-9 rounded bg-[#f4f6fb] dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold border border-border overflow-hidden select-none">
                             {tx.cardBrand || tx.paymentType}
                           </div>
                           <div className="leading-tight">
-                            <p className="text-[12.5px] font-medium text-foreground mb-0">{tx.cardNumber || "Account Transfer"}</p>
-                            <p className="text-[10px] text-muted-foreground mb-0">{tx.paymentType} Payment</p>
+                            <p className="text-[12.5px] font-medium text-foreground mb-0">
+                              {tx.cardNumber || "Account Transfer"}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mb-0">
+                              {tx.paymentType} Payment
+                            </p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-muted-foreground whitespace-nowrap">
-                        {tx.agentName}
-                      </td>
-                      <td className="px-5 py-3 text-muted-foreground max-w-[200px] truncate" title={tx.propertyAddress}>
+                      <td className="px-5 py-3 text-muted-foreground whitespace-nowrap">{tx.agentName}</td>
+                      <td
+                        className="px-5 py-3 text-muted-foreground max-w-[200px] truncate"
+                        title={tx.propertyAddress}
+                      >
                         {tx.propertyAddress}
                       </td>
                       <td className="px-5 py-3">
@@ -293,26 +397,21 @@ export default function TransactionsPage() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => setActiveDetailsTx(tx)}
-                            className="h-8 w-8 rounded bg-secondary hover:bg-secondary-foreground/10 text-secondary-foreground flex items-center justify-center transition-colors text-[16px]"
+                            className="h-8 w-8 rounded bg-secondary hover:bg-secondary-foreground/10 text-secondary-foreground flex items-center justify-center transition-colors text-[16px] cursor-pointer"
                             title="View Overview"
                           >
                             <i className="ri-eye-line text-[15px]" />
                           </button>
                           <button
-                            onClick={() => {
-                              const newStatus = prompt("Change status (Completed/Pending/Canceled):", tx.status);
-                              if (newStatus === "Completed" || newStatus === "Pending" || newStatus === "Canceled") {
-                                setTransactions(transactions.map(t => t.id === tx.id ? { ...t, status: newStatus } : t));
-                              }
-                            }}
-                            className="h-8 w-8 rounded bg-soft-primary text-primary hover:bg-[#604ae3] hover:text-white flex items-center justify-center transition-all text-[16px]"
+                            onClick={() => handleEditStatus(tx)}
+                            className="h-8 w-8 rounded bg-soft-primary text-primary hover:bg-[#604ae3] hover:text-white flex items-center justify-center transition-all text-[16px] cursor-pointer"
                             title="Edit Status"
                           >
                             <i className="ri-edit-line text-[15px]" />
                           </button>
                           <button
                             onClick={() => handleDelete(tx.id)}
-                            className="h-8 w-8 rounded bg-soft-danger text-danger hover:bg-[#ff5b5b] hover:text-white flex items-center justify-center transition-all text-[16px]"
+                            className="h-8 w-8 rounded bg-soft-danger text-danger hover:bg-[#ff5b5b] hover:text-white flex items-center justify-center transition-all text-[16px] cursor-pointer"
                             title="Delete"
                           >
                             <i className="ri-delete-bin-line text-[15px]" />
@@ -321,158 +420,68 @@ export default function TransactionsPage() {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
 
-        {/* ── Table Pagination Footer ─────────────────────────────── */}
-        {filteredTransactions.length > 0 && (
-          <div className="px-5 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-[13px] text-muted-foreground">
-              Showing <span className="font-semibold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
-              <span className="font-semibold text-foreground">
-                {Math.min(currentPage * itemsPerPage, filteredTransactions.length)}
-              </span>{" "}
-              of <span className="font-semibold text-foreground">{filteredTransactions.length}</span> Transactions
-            </p>
-            <nav className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled={currentPage === 1}
-                onClick={() => handlePageChange(currentPage - 1)}
-                className={`text-[12.5px] border border-border px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
-                  currentPage === 1
-                    ? "text-muted-foreground/40 cursor-not-allowed"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                Previous
-              </button>
-              {Array.from({ length: totalPages }).map((_, idx) => (
+          {/* ── Table Pagination Footer ─────────────────────────────── */}
+          {filteredTransactions.length > 0 && (
+            <div className="px-5 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-[13px] text-muted-foreground">
+                Showing <span className="font-semibold text-foreground">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
+                <span className="font-semibold text-foreground">
+                  {Math.min(currentPage * itemsPerPage, filteredTransactions.length)}
+                </span>{" "}
+                of <span className="font-semibold text-foreground">{filteredTransactions.length}</span> Transactions
+              </p>
+              <nav className="flex items-center gap-1">
                 <button
-                  key={idx}
-                  onClick={() => handlePageChange(idx + 1)}
-                  className={`h-8 w-8 rounded-[5px] text-[12.5px] font-bold transition-all ${
-                    currentPage === idx + 1
-                      ? "bg-[#604ae3] text-white"
-                      : "text-muted-foreground border border-border hover:bg-muted"
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  className={`text-[12.5px] border border-border px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
+                    currentPage === 1
+                      ? "text-muted-foreground/40 cursor-not-allowed"
+                      : "text-muted-foreground hover:bg-muted cursor-pointer"
                   }`}
                 >
-                  {idx + 1}
+                  Previous
                 </button>
-              ))}
-              <button
-                type="button"
-                disabled={currentPage === totalPages}
-                onClick={() => handlePageChange(currentPage + 1)}
-                className={`text-[12.5px] border border-border px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
-                  currentPage === totalPages
-                    ? "text-muted-foreground/40 cursor-not-allowed"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                Next
-              </button>
-            </nav>
-          </div>
-        )}
-      </div>
-
-      {/* ── Transaction Details Modal ────────────────────────────── */}
-      {activeDetailsTx && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-card border border-border rounded-[8px] shadow-lg max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-[#ebe9fc]/20 dark:bg-slate-800/50">
-              <div>
-                <h3 className="text-[16px] font-bold text-foreground">Transaction Details</h3>
-                <p className="text-[11.5px] text-primary font-semibold mt-0.5">{activeDetailsTx.id}</p>
-              </div>
-              <button
-                onClick={() => setActiveDetailsTx(null)}
-                className="h-8 w-8 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-              >
-                <i className="ri-close-line text-[20px]" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-5 space-y-4 text-[13.5px]">
-              {/* Customer Row */}
-              <div className="flex items-center gap-3 bg-muted/30 p-2.5 rounded-[6px] border border-border">
-                <img
-                  src={activeDetailsTx.customerAvatar}
-                  alt={activeDetailsTx.customerName}
-                  className="w-10 h-10 rounded-full object-cover border border-border"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${activeDetailsTx.customerName}`;
-                  }}
-                />
-                <div>
-                  <h4 className="font-bold text-foreground mb-0.5">{activeDetailsTx.customerName}</h4>
-                  <p className="text-[11px] text-muted-foreground mb-0">Buyer Account</p>
-                </div>
-                <div className="ml-auto">
-                  <span
-                    className={`px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${
-                      activeDetailsTx.status === "Completed"
-                        ? "bg-success/15 text-success"
-                        : activeDetailsTx.status === "Pending"
-                        ? "bg-warning/15 text-warning"
-                        : "bg-danger/15 text-danger"
+                {Array.from({ length: totalPages }).map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handlePageChange(idx + 1)}
+                    className={`h-8 w-8 rounded-[5px] text-[12.5px] font-bold transition-all cursor-pointer ${
+                      currentPage === idx + 1
+                        ? "bg-[#604ae3] text-white"
+                        : "text-muted-foreground border border-border hover:bg-muted"
                     }`}
                   >
-                    {activeDetailsTx.status}
-                  </span>
-                </div>
-              </div>
-
-              {/* Data list */}
-              <div className="grid grid-cols-2 gap-y-3.5 gap-x-2 pt-2">
-                <div>
-                  <span className="text-[11px] text-muted-foreground font-medium block">AMOUNT</span>
-                  <span className="text-[15px] font-bold text-foreground">{formatPrice(activeDetailsTx.amount)}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] text-muted-foreground font-medium block">TRANSACTION DATE</span>
-                  <span className="font-semibold text-foreground">{activeDetailsTx.date}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] text-muted-foreground font-medium block">PAYMENT METHOD</span>
-                  <span className="font-medium text-foreground">{activeDetailsTx.paymentMethod}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] text-muted-foreground font-medium block">ASSIGNED AGENT</span>
-                  <span className="font-medium text-foreground">{activeDetailsTx.agentName}</span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-[11px] text-muted-foreground font-medium block">INVESTED PROPERTY ADDRESS</span>
-                  <span className="font-medium text-foreground leading-snug">{activeDetailsTx.propertyAddress}</span>
-                </div>
-              </div>
+                    {idx + 1}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  className={`text-[12.5px] border border-border px-3 py-1.5 rounded-[5px] font-medium transition-colors ${
+                    currentPage === totalPages
+                      ? "text-muted-foreground/40 cursor-not-allowed"
+                      : "text-muted-foreground hover:bg-muted cursor-pointer"
+                  }`}
+                >
+                  Next
+                </button>
+              </nav>
             </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border bg-muted/10">
-              <button
-                onClick={() => {
-                  window.print();
-                }}
-                className="border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-[12.5px] font-bold px-4 py-2 rounded-[5px] transition-colors flex items-center gap-1.5"
-              >
-                <i className="ri-printer-line" /> Print Invoice
-              </button>
-              <button
-                onClick={() => setActiveDetailsTx(null)}
-                className="bg-primary hover:bg-[#4d36cd] text-white text-[12.5px] font-bold px-4 py-2 rounded-[5px] transition-colors"
-              >
-                Done
-              </button>
-            </div>
-          </div>
+          )}
         </div>
+      )}
+
+      {/* ── Transaction Invoice Modal ────────────────────────────── */}
+      {activeDetailsTx && (
+        <InvoiceModal tx={activeDetailsTx} onClose={() => setActiveDetailsTx(null)} />
       )}
     </div>
   );
