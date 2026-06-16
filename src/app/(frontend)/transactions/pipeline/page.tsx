@@ -90,6 +90,7 @@ export default function PipelinePage() {
   const [isRecordDealOpen, setIsRecordDealOpen] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | undefined>(undefined);
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined);
+  const [selectedDeal, setSelectedDeal] = useState<PipelineCard | null>(null);
 
   // Modal states for Create New Deal Card
   const [isCreateCardOpen, setIsCreateCardOpen] = useState(false);
@@ -284,7 +285,8 @@ export default function PipelinePage() {
                       key={card.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, card.id)}
-                      className="bg-card border border-border rounded-lg p-3.5 hover:shadow-md transition-all active:scale-[0.98] cursor-grab active:cursor-grabbing group relative"
+                      onClick={() => setSelectedDeal(card)}
+                      className="bg-card border border-border rounded-lg p-3.5 hover:shadow-md transition-all active:scale-[0.98] cursor-pointer hover:bg-muted/10 group relative"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className="text-[10px] font-extrabold text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded border border-border">
@@ -296,7 +298,10 @@ export default function PipelinePage() {
                           {stages.filter(s => s !== stage).slice(0, 2).map(nextS => (
                             <button
                               key={nextS}
-                              onClick={() => moveCard(card.id, nextS)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveCard(card.id, nextS);
+                              }}
                               className="text-[9px] font-extrabold bg-primary/10 hover:bg-primary text-primary hover:text-white px-1 py-0.5 rounded border border-primary/20 transition-all"
                               title={`Move to ${nextS}`}
                             >
@@ -442,6 +447,148 @@ export default function PipelinePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Deal Details Modal ────────────────────────────────────── */}
+      {selectedDeal && (
+        <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/10">
+              <div>
+                <span className="text-[11px] font-extrabold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                  {selectedDeal.id}
+                </span>
+                <h3 className="text-[16px] font-bold text-foreground mt-1.5 leading-snug">
+                  {selectedDeal.propertyTitle}
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedDeal(null)}
+                className="text-muted-foreground hover:text-foreground h-8 w-8 rounded-full hover:bg-muted flex items-center justify-center transition-colors text-[18px]"
+              >
+                <i className="ri-close-line" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-5 space-y-5 text-[13px]">
+              {/* Deal Status & Value Row */}
+              <div className="grid grid-cols-2 gap-4 bg-muted/20 p-3.5 rounded-lg border border-border">
+                <div>
+                  <span className="text-[11px] font-bold text-muted-foreground uppercase block">Stage</span>
+                  <span className="text-[14px] font-extrabold text-foreground mt-0.5 inline-block">
+                    {selectedDeal.stage}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-muted-foreground uppercase block">Deal Value</span>
+                  <span className="text-[15px] font-black text-primary mt-0.5 inline-block">
+                    ${selectedDeal.value.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Associations */}
+              <div className="space-y-3.5">
+                <h4 className="font-bold text-foreground uppercase tracking-wider text-[11px] border-b border-border pb-1">
+                  Involved Parties & Property
+                </h4>
+
+                {/* Customer Row */}
+                <div className="flex items-center justify-between bg-card border border-border/80 rounded-lg p-2.5 hover:bg-muted/10 transition-colors">
+                  <div className="flex items-center gap-2.5">
+                    <img src={selectedDeal.customerAvatar} className="h-9 w-9 rounded-full object-cover border border-border" alt="" />
+                    <div>
+                      <p className="text-[12px] font-bold text-foreground">{selectedDeal.customerName}</p>
+                      <p className="text-[10px] text-muted-foreground">Client / Buyer</p>
+                    </div>
+                  </div>
+                  {customers.find(c => c.name === selectedDeal.customerName) && (
+                    <Link
+                      href={`/customers/${customers.find(c => c.name === selectedDeal.customerName)?.id}`}
+                      className="text-[11px] text-primary hover:underline font-bold"
+                    >
+                      View Profile &rarr;
+                    </Link>
+                  )}
+                </div>
+
+                {/* Agent Row */}
+                <div className="flex items-center justify-between bg-card border border-border/80 rounded-lg p-2.5 hover:bg-muted/10 transition-colors">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-9 w-9 rounded-full bg-soft-primary flex items-center justify-center text-primary text-[16px]">
+                      <i className="ri-user-star-line" />
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-bold text-foreground">{selectedDeal.agentName}</p>
+                      <p className="text-[10px] text-muted-foreground">Responsible Agent</p>
+                    </div>
+                  </div>
+                  {agents.find(a => a.name === selectedDeal.agentName) && (
+                    <Link
+                      href={`/agents/${agents.find(a => a.name === selectedDeal.agentName)?.id}`}
+                      className="text-[11px] text-primary hover:underline font-bold"
+                    >
+                      View Profile &rarr;
+                    </Link>
+                  )}
+                </div>
+
+                {/* Property Row */}
+                <div className="flex items-center justify-between bg-card border border-border/80 rounded-lg p-2.5 hover:bg-muted/10 transition-colors">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-9 w-9 rounded-full bg-soft-info flex items-center justify-center text-info text-[16px]">
+                      <i className="ri-building-line" />
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-bold text-foreground line-clamp-1">{selectedDeal.propertyTitle}</p>
+                      <p className="text-[10px] text-muted-foreground">Target Listing</p>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/properties/${selectedDeal.propertyId}`}
+                    className="text-[11px] text-primary hover:underline font-bold shrink-0"
+                  >
+                    View Listing &rarr;
+                  </Link>
+                </div>
+              </div>
+
+              {/* Activity Info */}
+              <div className="text-[11.5px] text-muted-foreground flex justify-between items-center pt-2 border-t border-border/40">
+                <span>Last Updated: <strong>{selectedDeal.lastUpdated}</strong></span>
+                <span>Type: <strong>Real Estate Deal</strong></span>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-4 bg-muted/30 border-t border-border flex items-center justify-between">
+              {selectedDeal.stage !== "Closed" ? (
+                <button
+                  onClick={() => {
+                    moveCard(selectedDeal.id, "Closed");
+                    setSelectedDeal(null);
+                  }}
+                  className="bg-success hover:bg-success/95 text-white text-[12px] font-bold px-4 py-2 rounded-[5px] flex items-center gap-1 shadow-sm transition-all"
+                >
+                  <i className="ri-checkbox-circle-line text-[14px]" /> Close Deal
+                </button>
+              ) : (
+                <span className="text-[12px] font-bold text-success flex items-center gap-1.5">
+                  <i className="ri-checkbox-circle-fill text-[16px]" /> Completed & Closed
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectedDeal(null)}
+                className="text-[12.5px] font-bold text-muted-foreground border border-border bg-card hover:bg-muted px-4 py-2 rounded-[5px] transition-all"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
