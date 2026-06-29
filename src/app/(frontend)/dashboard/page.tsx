@@ -1,5 +1,5 @@
-﻿import { Metadata } from "next";
-import DashboardClient from "./DashboardClient";
+import { Metadata } from "next";
+import DashboardClient from "../DashboardClient";
 
 export const metadata: Metadata = {
   title: "Analytics | waveron - Real Estate Management Admin",
