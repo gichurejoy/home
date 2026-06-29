@@ -36,7 +36,7 @@ export interface Customer {
   phone: string;
   location: string;
   status: "Available" | "Unavailable";
-  listStatus: "Interested" | "Under Review" | "Follow-up";
+  listStatus: "Interested" | "Under Review" | "Follow-up" | "Offer Submitted" | "Closed";
   propertyType: string;
   interestedProperties: string[];
   avatar: string;

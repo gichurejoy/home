@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { toast } from "@/store/useToastStore";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
-import { Trash2, Home, ArrowLeft, Check, X, Plus } from "lucide-react";
+import { Trash2, Home, ArrowLeft, Check, X, Plus, Star, Award } from "lucide-react";
 import Link from "next/link";
 
 export default function ComparePropertiesPage() {
@@ -14,6 +15,10 @@ export default function ComparePropertiesPage() {
     properties,
     agents
   } = useAppStore();
+
+  const [presentationMode, setPresentationMode] = useState(false);
+  const [clientRatings, setClientRatings] = useState<Record<string, number>>({});
+  const [presentationNotes, setPresentationNotes] = useState("We have handpicked these listings based on your target investment budget, location preferences, and upgrade yield potential. Let me know which one stands out!");
 
   const selectedProperties = properties.filter(p => comparedPropertyIds.includes(p.id));
 
@@ -37,6 +42,21 @@ export default function ComparePropertiesPage() {
           <p className="text-[13px] text-muted-foreground mt-0.5">Compare specifications and features side-by-side</p>
         </div>
         <div className="flex items-center gap-3">
+          {selectedProperties.length > 0 && (
+            <button
+              onClick={() => {
+                setPresentationMode(!presentationMode);
+                toast.success(`Client Presentation Mode ${!presentationMode ? "enabled" : "disabled"}.`);
+              }}
+              className={`flex items-center gap-1.5 text-[12.5px] font-bold px-3.5 py-1.5 rounded-[5px] border transition-all cursor-pointer border-0 ${
+                presentationMode
+                  ? "bg-[#0acf97] text-white hover:bg-[#09bc8a]"
+                  : "bg-[#604ae3]/10 text-[#604ae3] border-[#604ae3]/20 hover:bg-[#604ae3] hover:text-white"
+              }`}
+            >
+              <Award className="h-4 w-4" /> {presentationMode ? "Exit Client View" : "Client View Mode"}
+            </button>
+          )}
           <Link
             href="/properties/grid"
             className="flex items-center gap-1.5 text-[12.5px] font-bold text-muted-foreground border border-border bg-card hover:bg-muted px-3.5 py-1.5 rounded-[5px] transition-all"
@@ -80,7 +100,35 @@ export default function ComparePropertiesPage() {
           </div>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-[8px] shadow-[0_0_35px_rgba(154,161,171,0.05)] overflow-hidden">
+        <div className="space-y-6">
+          {/* Client Presentation Banner & Custom Notes */}
+          {presentationMode && (
+            <div className="bg-gradient-to-r from-[#604ae3]/10 to-[#604ae3]/5 border border-[#604ae3]/20 rounded-xl p-5 text-left flex flex-col md:flex-row gap-5 items-start justify-between">
+              <div className="space-y-2 flex-1">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 rounded bg-primary flex items-center justify-center text-white">
+                    <Award className="h-4 w-4" />
+                  </div>
+                  <h3 className="text-[16px] font-bold text-foreground">Curated Client Property Showcase</h3>
+                </div>
+                <textarea
+                  value={presentationNotes}
+                  onChange={(e) => setPresentationNotes(e.target.value)}
+                  className="w-full text-[13px] border border-border bg-card/60 text-foreground rounded-lg p-2.5 outline-none focus:border-primary transition-colors font-medium resize-none leading-relaxed"
+                  rows={2}
+                />
+              </div>
+              <div className="border border-border bg-card p-3 rounded-lg flex items-center gap-3 shrink-0">
+                <img src="/assets/images/users/avatar-2.jpg" className="h-10 w-10 rounded-full object-cover border" alt="" />
+                <div>
+                  <p className="text-[12px] font-bold text-foreground">Dominic Keller</p>
+                  <p className="text-[10px] text-muted-foreground">Managing Broker & Advisor</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-card border border-border rounded-[8px] shadow-[0_0_35px_rgba(154,161,171,0.05)] overflow-hidden">
           {/* Scrollable table container */}
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left min-w-[600px] table-fixed">
@@ -133,6 +181,44 @@ export default function ComparePropertiesPage() {
               </thead>
 
               <tbody className="divide-y divide-border text-[13.5px] font-medium text-foreground">
+                {/* Client Ratings Row */}
+                {presentationMode && (
+                  <tr className="bg-[#604ae3]/5">
+                    <td className="py-3 px-5 text-[#604ae3] font-bold">Client Feedback</td>
+                    {selectedProperties.map(p => {
+                      const currentRating = clientRatings[p.id] || 0;
+                      return (
+                        <td key={p.id} className="py-3 px-5 border-l border-border/40">
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => {
+                                  setClientRatings(prev => ({ ...prev, [p.id]: star }));
+                                  toast.success(`Rated ${p.title} ${star} Stars!`);
+                                }}
+                                className="bg-transparent border-0 p-0 cursor-pointer"
+                              >
+                                <Star
+                                  className={`h-5 w-5 ${
+                                    star <= currentRating
+                                      ? "fill-[#f9bc0b] text-[#f9bc0b]"
+                                      : "text-muted-foreground/45 hover:text-[#f9bc0b]"
+                                  } transition-colors`}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+                      );
+                    })}
+                    {Array.from({ length: Math.max(0, 4 - selectedProperties.length) }).map((_, idx) => (
+                      <td key={`empty-rating-${idx}`} className="py-3 px-5 border-l border-border/40" />
+                    ))}
+                  </tr>
+                )}
+
                 {/* Price Row */}
                 <tr>
                   <td className="py-3 px-5 text-muted-foreground font-bold bg-muted/5">Price</td>
@@ -225,25 +311,27 @@ export default function ComparePropertiesPage() {
                 </tr>
 
                 {/* Agent Assignment */}
-                <tr>
-                  <td className="py-3 px-5 text-muted-foreground font-bold bg-muted/5">Listing Agent</td>
-                  {selectedProperties.map(p => {
-                    const agent = agents.find(a => a.id === p.agentId);
-                    return (
-                      <td key={p.id} className="py-3 px-5 border-l border-border/40">
-                        {agent ? (
-                          <div className="flex items-center gap-2">
-                            <img src={agent.avatar} className="h-6 w-6 rounded-full object-cover border border-border" alt="" />
-                            <span className="truncate">{agent.name}</span>
-                          </div>
-                        ) : "N/A"}
-                      </td>
-                    );
-                  })}
-                  {Array.from({ length: Math.max(0, 4 - selectedProperties.length) }).map((_, idx) => (
-                    <td key={`empty-agent-${idx}`} className="py-3 px-5 border-l border-border/40 bg-muted/5" />
-                  ))}
-                </tr>
+                {!presentationMode && (
+                  <tr>
+                    <td className="py-3 px-5 text-muted-foreground font-bold bg-muted/5">Listing Agent</td>
+                    {selectedProperties.map(p => {
+                      const agent = agents.find(a => a.id === p.agentId);
+                      return (
+                        <td key={p.id} className="py-3 px-5 border-l border-border/40">
+                          {agent ? (
+                            <div className="flex items-center gap-2">
+                              <img src={agent.avatar} className="h-6 w-6 rounded-full object-cover border border-border" alt="" />
+                              <span className="truncate">{agent.name}</span>
+                            </div>
+                          ) : "N/A"}
+                        </td>
+                      );
+                    })}
+                    {Array.from({ length: Math.max(0, 4 - selectedProperties.length) }).map((_, idx) => (
+                      <td key={`empty-agent-${idx}`} className="py-3 px-5 border-l border-border/40 bg-muted/5" />
+                    ))}
+                  </tr>
+                )}
 
                 {/* Header Feature Section */}
                 <tr className="bg-muted/10">
@@ -276,6 +364,7 @@ export default function ComparePropertiesPage() {
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       )}
     </div>

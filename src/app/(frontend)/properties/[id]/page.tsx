@@ -22,17 +22,11 @@ export default function PropertyDetails({ params }: { params: Promise<{ id: stri
     updateMilestoneStatus,
     addPermit,
     deletePermit,
-    addDocument
+    addDocument,
+    agencyName
   } = useAppStore();
   const [isRecordDealOpen, setIsRecordDealOpen] = useState(false);
 
-  // PLM suite local states
-  const [activeTab, setActiveTab] = useState<'staging' | 'blueprint' | 'ledger' | 'timeline' | 'permits'>('staging');
-  const [is3DTourOpen, setIs3DTourOpen] = useState(false);
-  const [currentTourRoom, setCurrentTourRoom] = useState<'living' | 'kitchen' | 'bedroom' | 'terrace'>('living');
-  const [blueprintZoom, setBlueprintZoom] = useState(1);
-  const [newExpenseForm, setNewExpenseForm] = useState({ category: 'Materials' as RenovationExpense['category'], amount: '', description: '' });
-  const [newPermitForm, setNewPermitForm] = useState({ name: '', authority: '', status: 'Applied' as ZoningPermit['status'], expiryDate: '' });
   // Resolve both direct match (PROP-001) and short index/numeric matches (1, 01, etc.)
   const property = properties.find((p) => {
     const idLower = resolvedParams.id.toLowerCase();
@@ -44,6 +38,25 @@ export default function PropertyDetails({ params }: { params: Promise<{ id: stri
     if (numericPart === idLower.replace(/^0+/, "")) return true;
     return false;
   });
+
+  // PLM suite local states
+  const [activeTab, setActiveTab] = useState<'staging' | 'blueprint' | 'ledger' | 'timeline' | 'permits' | 'flyer' | 'virtualStaging'>('staging');
+  const [is3DTourOpen, setIs3DTourOpen] = useState(false);
+  const [currentTourRoom, setCurrentTourRoom] = useState<'living' | 'kitchen' | 'bedroom' | 'terrace'>('living');
+  const [blueprintZoom, setBlueprintZoom] = useState(1);
+  const [newExpenseForm, setNewExpenseForm] = useState({ category: 'Materials' as RenovationExpense['category'], amount: '', description: '' });
+  
+  // Flyer Builder States
+  const [flyerTemplate, setFlyerTemplate] = useState<'minimal' | 'slate' | 'burgundy'>('minimal');
+  const [flyerTagline, setFlyerTagline] = useState("LUXURY LIVING REDEFINED");
+  const [flyerBio, setFlyerBio] = useState("Your trusted real estate advisor, representing premium properties with custom white-glove service.");
+  const [flyerPhone, setFlyerPhone] = useState(property ? property.owner.phone : "+1 (555) 123-4567");
+  const [flyerSelectedPhotos, setFlyerSelectedPhotos] = useState<string[]>([property ? property.image : "/assets/images/properties/p-4.jpg"]);
+
+  // 3D Virtual Staging States
+  const [stagedFurnitureStyle, setStagedFurnitureStyle] = useState<'unfurnished' | 'scandi' | 'office' | 'rustic'>('unfurnished');
+  const [stagingInventory, setStagingInventory] = useState<string[]>([]);
+  const [newPermitForm, setNewPermitForm] = useState({ name: '', authority: '', status: 'Applied' as ZoningPermit['status'], expiryDate: '' });
 
   const [targetResaleVal, setTargetResaleVal] = useState<number>(() => {
     return property ? property.price + 150000 : 0;
@@ -445,10 +458,12 @@ export default function PropertyDetails({ params }: { params: Promise<{ id: stri
                 <div className="flex flex-wrap gap-1 bg-muted/30 p-1 border border-border rounded-lg">
                   {([
                     { id: 'staging', label: 'AI Staging', icon: 'ri-magic-line' },
+                    { id: 'virtualStaging', label: '3D Staging Sandbox', icon: 'ri-walk-line' },
                     { id: 'blueprint', label: 'CAD Blueprints', icon: 'ri-draft-line' },
                     { id: 'ledger', label: 'Cost Ledger', icon: 'ri-calculator-line' },
                     { id: 'timeline', label: 'Gantt Timeline', icon: 'ri-time-line' },
-                    { id: 'permits', label: 'Zoning & Permits', icon: 'ri-file-shield-line' }
+                    { id: 'permits', label: 'Zoning & Permits', icon: 'ri-file-shield-line' },
+                    { id: 'flyer', label: 'Flyer Builder', icon: 'ri-file-text-line' }
                   ] as const).map((t) => (
                     <button
                       key={t.id}
@@ -1254,6 +1269,421 @@ export default function PropertyDetails({ params }: { params: Promise<{ id: stri
                         Add Permit Tracking
                       </button>
                     </form>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Tab 6: Flyer Builder ── */}
+              {activeTab === 'flyer' && (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  <div className="flex justify-between items-center border-b border-border pb-3">
+                    <div>
+                      <h5 className="text-[14px] font-bold text-foreground">Interactive Flyer & Brochure Builder</h5>
+                      <p className="text-[12px] text-muted-foreground">Design and print dynamic, co-branded property marketing sheets.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left Pane: Config Controls (Col 5) */}
+                    <div className="lg:col-span-5 space-y-4 bg-muted/10 border border-border p-4 rounded-lg text-left no-print">
+                      <h6 className="text-[13px] font-bold text-foreground">Flyer Configuration</h6>
+                      
+                      {/* Template Selector */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Template Theme</label>
+                        <div className="flex gap-2">
+                          {[
+                            { id: 'minimal' as const, label: 'Clean White' },
+                            { id: 'slate' as const, label: 'Luxury Slate' },
+                            { id: 'burgundy' as const, label: 'Classic Burgundy' }
+                          ].map(tpl => (
+                            <button
+                              key={tpl.id}
+                              type="button"
+                              onClick={() => setFlyerTemplate(tpl.id)}
+                              className={`flex-1 text-center py-2 px-2 rounded text-[12px] font-bold transition-all border cursor-pointer ${
+                                flyerTemplate === tpl.id
+                                  ? 'bg-[#604ae3] text-white border-[#604ae3]'
+                                  : 'bg-card text-muted-foreground border-border hover:bg-muted'
+                              }`}
+                            >
+                              {tpl.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Tagline */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Headline / Tagline</label>
+                        <input
+                          type="text"
+                          value={flyerTagline}
+                          onChange={(e) => setFlyerTagline(e.target.value)}
+                          className="w-full text-[12.5px] border border-border bg-card text-foreground rounded px-3 py-1.5 outline-none focus:border-primary font-medium"
+                          placeholder="e.g. LUXURY LIVING REDEFINED"
+                        />
+                      </div>
+
+                      {/* Custom Agent Bio */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Agent Pitch Bio</label>
+                        <textarea
+                          rows={3}
+                          value={flyerBio}
+                          onChange={(e) => setFlyerBio(e.target.value)}
+                          className="w-full text-[12.5px] border border-border bg-card text-foreground rounded px-3 py-1.5 outline-none focus:border-primary font-medium resize-none"
+                          placeholder="Short message printed on the brochure bottom..."
+                        />
+                      </div>
+
+                      {/* Agent Phone */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Contact Phone</label>
+                        <input
+                          type="text"
+                          value={flyerPhone}
+                          onChange={(e) => setFlyerPhone(e.target.value)}
+                          className="w-full text-[12.5px] border border-border bg-card text-foreground rounded px-3 py-1.5 outline-none focus:border-primary font-medium"
+                        />
+                      </div>
+
+                      {/* Image Selector Grid */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Select Brochure Images</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            property.image,
+                            "/assets/images/properties/p-4.jpg",
+                            "/assets/images/properties/p-11.jpg",
+                            "/assets/images/properties/p-12.jpg",
+                            "/assets/images/properties/p-3.jpg",
+                            "/assets/images/properties/p-2.jpg",
+                          ].map((imgUrl, idx) => {
+                            const isSelected = flyerSelectedPhotos.includes(imgUrl);
+                            return (
+                              <div
+                                key={idx}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    if (flyerSelectedPhotos.length > 1) {
+                                      setFlyerSelectedPhotos(flyerSelectedPhotos.filter(img => img !== imgUrl));
+                                    } else {
+                                      toast.error("Select at least one photo!");
+                                    }
+                                  } else {
+                                    if (flyerSelectedPhotos.length < 3) {
+                                      setFlyerSelectedPhotos([...flyerSelectedPhotos, imgUrl]);
+                                    } else {
+                                      toast.error("Select maximum 3 photos!");
+                                    }
+                                  }
+                                }}
+                                className={`aspect-[4/3] rounded-lg overflow-hidden border-2 cursor-pointer transition-all relative ${
+                                  isSelected ? 'border-[#604ae3] scale-95 shadow' : 'border-border opacity-70 hover:opacity-100'
+                                }`}
+                              >
+                                <img src={imgUrl} className="w-full h-full object-cover" alt="" />
+                                {isSelected && (
+                                  <div className="absolute top-1 right-1 h-4 w-4 bg-[#604ae3] text-white rounded-full flex items-center justify-center text-[9px] font-bold">
+                                    {flyerSelectedPhotos.indexOf(imgUrl) + 1}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground block mt-1">Click to select (Choose 1 to 3 images).</span>
+                      </div>
+
+                      {/* Action triggers */}
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => window.print()}
+                          className="w-full bg-[#0acf97] hover:bg-[#0acf97]/95 text-white text-[13px] font-bold py-2.5 rounded-[5px] flex items-center justify-center gap-1.5 transition-all shadow active:scale-[0.98] cursor-pointer"
+                        >
+                          <i className="ri-printer-line text-[16px]" /> Print / Save PDF Flyer
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Right Pane: Live Printable Flyer Sheet (Col 7) */}
+                    <div className="lg:col-span-7 flex justify-center">
+                      <div
+                        id="property-flyer-printable"
+                        className={`w-full max-w-[500px] aspect-[8.5/11] border rounded-lg shadow-2xl p-6 relative flex flex-col justify-between text-left ${
+                          flyerTemplate === 'minimal' ? 'bg-white text-gray-900 border-gray-200' :
+                          flyerTemplate === 'slate' ? 'bg-slate-900 text-slate-100 border-slate-800' :
+                          'bg-amber-950 text-amber-50 border-amber-900'
+                        }`}
+                      >
+                        {/* Printable CSS targeting */}
+                        <style dangerouslySetInnerHTML={{ __html: `
+                          @media print {
+                            body * {
+                              visibility: hidden !important;
+                            }
+                            #property-flyer-printable, #property-flyer-printable * {
+                              visibility: visible !important;
+                            }
+                            #property-flyer-printable {
+                              position: absolute !important;
+                              left: 0 !important;
+                              top: 0 !important;
+                              width: 100% !important;
+                              height: 100% !important;
+                              border: none !important;
+                              box-shadow: none !important;
+                              padding: 2.5cm !important;
+                              margin: 0 !important;
+                            }
+                            .no-print {
+                              display: none !important;
+                            }
+                          }
+                        `}} />
+
+                        {/* Top Branding Section */}
+                        <div className="border-b border-current/20 pb-4 mb-4 flex justify-between items-end">
+                          <div>
+                            <h3 className="text-lg font-black tracking-wider uppercase">{agencyName || "WAVERON SERVICES"}</h3>
+                            <p className="text-[9px] font-medium tracking-widest opacity-80 uppercase">{flyerTagline}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[14px] font-extrabold text-[#0acf97]">${property.price.toLocaleString()}</span>
+                            <p className="text-[8px] opacity-75 font-mono">ID: #{property.id}</p>
+                          </div>
+                        </div>
+
+                        {/* Listing Specifications Title & Address */}
+                        <div className="mb-4">
+                          <h4 className="text-md font-bold leading-tight">{property.title}</h4>
+                          <p className="text-[10px] opacity-80 mt-0.5">{property.location}</p>
+                        </div>
+
+                        {/* Main Photos Grid */}
+                        <div className={`grid gap-2 mb-4 ${
+                          flyerSelectedPhotos.length === 1 ? 'grid-cols-1' :
+                          flyerSelectedPhotos.length === 2 ? 'grid-cols-2' :
+                          'grid-cols-3'
+                        }`}>
+                          {flyerSelectedPhotos.map((url, idx) => (
+                            <div key={idx} className="aspect-[4/3] rounded overflow-hidden border border-current/10 bg-current/5">
+                              <img src={url} className="w-full h-full object-cover" alt="" />
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Middle Spec Table */}
+                        <div className="grid grid-cols-4 gap-3 text-center border-y border-current/15 py-3 mb-4 text-[11px] font-bold">
+                          <div>
+                            <p className="opacity-70 text-[9px] uppercase tracking-wider mb-0.5">Bedrooms</p>
+                            <p>{property.bedrooms} BHK</p>
+                          </div>
+                          <div className="border-l border-current/15">
+                            <p className="opacity-70 text-[9px] uppercase tracking-wider mb-0.5">Bathrooms</p>
+                            <p>{property.bathrooms} Bath</p>
+                          </div>
+                          <div className="border-l border-current/15">
+                            <p className="opacity-70 text-[9px] uppercase tracking-wider mb-0.5">Area</p>
+                            <p>{property.area} sqft</p>
+                          </div>
+                          <div className="border-l border-current/15">
+                            <p className="opacity-70 text-[9px] uppercase tracking-wider mb-0.5">Status</p>
+                            <p>{property.status}</p>
+                          </div>
+                        </div>
+
+                        {/* Description Pitch */}
+                        <div className="space-y-1 mb-4 flex-1">
+                          <h5 className="text-[10px] font-bold uppercase tracking-wider">Property Description</h5>
+                          <p className="text-[9.5px] leading-relaxed opacity-85">{property.description || "Beautiful design pre-selected and fully approved. Features complete structural safety compliance audits."}</p>
+                        </div>
+
+                        {/* Bottom Agent Co-Branding footer */}
+                        <div className="border-t border-current/25 pt-4 flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-full bg-slate-200 border border-current/10 flex-shrink-0 flex items-center justify-center font-bold text-gray-700 text-[11px]">
+                              AG
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-bold">Dominic Keller</p>
+                              <p className="text-[8px] opacity-75 uppercase tracking-wide">Listing Specialist</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-bold">{flyerPhone}</p>
+                            <p className="text-[8.5px] opacity-80">{property.owner.email}</p>
+                          </div>
+                        </div>
+
+                        {/* Micro Agent pitch bio */}
+                        <p className="text-[8px] italic opacity-60 text-center mt-3 pt-2 border-t border-dotted border-current/20 leading-snug">
+                          {flyerBio}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Tab 7: 3D Staging Sandbox ── */}
+              {activeTab === 'virtualStaging' && (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  <div className="flex justify-between items-center border-b border-border pb-3">
+                    <div>
+                      <h5 className="text-[14px] font-bold text-foreground">Interactive 3D Virtual Staging Tour</h5>
+                      <p className="text-[12px] text-muted-foreground">Select styling presets to load virtually staged interior furniture sets dynamically.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left Pane: Interactive Tour Screen (Col 8) */}
+                    <div className="lg:col-span-8 space-y-4">
+                      <div className="border border-border rounded-lg bg-slate-950 dark:bg-slate-900 aspect-[16/9] flex items-center justify-center relative overflow-hidden select-none">
+                        {/* Grid background */}
+                        <div className="absolute inset-0 opacity-10 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+
+                        {/* Tour Room Viewport */}
+                        <div className="absolute inset-0 w-full h-full">
+                          <img
+                            src={
+                              stagedFurnitureStyle === 'unfurnished' ? roomEmptyImg : roomStagedImg
+                            }
+                            className="w-full h-full object-cover transition-all duration-300"
+                            style={{
+                              filter: stagedFurnitureStyle === 'scandi' ? 'none' :
+                                      stagedFurnitureStyle === 'office' ? 'hue-rotate(30deg) brightness(0.9) contrast(1.1)' :
+                                      stagedFurnitureStyle === 'rustic' ? 'sepia(0.2) saturate(1.2) brightness(0.95)' :
+                                      'grayscale(20%) brightness(0.85)'
+                            }}
+                            alt="3D Tour"
+                          />
+                          {/* Matterport navigation indicators simulation */}
+                          <div className="absolute bottom-16 left-1/3 h-5 w-5 rounded-full bg-[#604ae3]/60 border-2 border-white flex items-center justify-center text-white text-[9px] font-black cursor-pointer animate-ping" />
+                          <div className="absolute bottom-16 left-1/3 h-5 w-5 rounded-full bg-[#604ae3] border-2 border-white flex items-center justify-center text-white text-[9px] font-black cursor-pointer shadow-lg" title="Walk to Hallway" />
+
+                          <div className="absolute top-1/4 right-1/4 h-5 w-5 rounded-full bg-[#604ae3]/60 border-2 border-white flex items-center justify-center text-white text-[9px] font-black cursor-pointer animate-ping" />
+                          <div className="absolute top-1/4 right-1/4 h-5 w-5 rounded-full bg-[#604ae3] border-2 border-white flex items-center justify-center text-white text-[9px] font-black cursor-pointer shadow-lg" title="Inspect Fireplace" />
+                        </div>
+
+                        {/* Room label Overlay */}
+                        <div className="absolute top-4 left-4 bg-black/75 text-white text-[10px] font-mono px-2.5 py-1 rounded border border-white/10 z-10">
+                          ACTIVE ROOM: {currentTourRoom.toUpperCase()} | STAGING: {stagedFurnitureStyle.toUpperCase()}
+                        </div>
+
+                        {/* Hotspot details overlay */}
+                        <div className="absolute top-4 right-4 bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded shadow z-10 flex items-center gap-1">
+                          <i className="ri-radar-line animate-pulse" /> 3D Tour Mode Active
+                        </div>
+
+                        {/* Navigation Overlay */}
+                        <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center bg-black/60 backdrop-blur p-2 rounded-lg border border-white/10 text-white z-10">
+                          <span className="text-[11px] font-bold opacity-80">Navigate Area:</span>
+                          <div className="flex gap-1.5">
+                            {[
+                              { id: 'living' as const, label: 'Living Room' },
+                              { id: 'kitchen' as const, label: 'Kitchen' },
+                              { id: 'bedroom' as const, label: 'Master Bedroom' },
+                              { id: 'terrace' as const, label: 'Outdoor Terrace' }
+                            ].map(room => (
+                              <button
+                                key={room.id}
+                                type="button"
+                                onClick={() => {
+                                  setCurrentTourRoom(room.id);
+                                  toast.info(`Entering ${room.label}...`);
+                                }}
+                                className={`px-2 py-1 rounded text-[10px] font-bold transition-all border border-white/10 cursor-pointer ${
+                                  currentTourRoom === room.id
+                                    ? 'bg-[#604ae3] text-white border-[#604ae3]'
+                                    : 'bg-white/10 text-white hover:bg-white/20'
+                                }`}
+                              >
+                                {room.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Pane: Staging Configurator Sidebar (Col 4) */}
+                    <div className="lg:col-span-4 space-y-4 bg-muted/10 border border-border p-4 rounded-lg text-left h-full flex flex-col justify-between">
+                      <div className="space-y-4">
+                        <h6 className="text-[13px] font-bold text-foreground">3D Furniture Configurator</h6>
+                        
+                        {/* Staging Styles Selector */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Design Style Preset</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { id: 'unfurnished' as const, label: 'Empty (CAD Struct)' },
+                              { id: 'scandi' as const, label: 'Scandinavian' },
+                              { id: 'office' as const, label: 'Modern Office' },
+                              { id: 'rustic' as const, label: 'Cozy Rustic' }
+                            ].map(style => (
+                              <button
+                                key={style.id}
+                                type="button"
+                                onClick={() => {
+                                  setStagedFurnitureStyle(style.id);
+                                  if (style.id === 'unfurnished') {
+                                    setStagingInventory([]);
+                                  } else if (style.id === 'scandi') {
+                                    setStagingInventory(['Kivik Sofa', 'Lack Coffee Table', 'Ikea Rug']);
+                                  } else if (style.id === 'office') {
+                                    setStagingInventory(['Ergonomic Mesh Chair', 'Sit-Stand Desk', 'Monitor Mount']);
+                                  } else {
+                                    setStagingInventory(['Oak Log Table', 'Leather Recliner', 'Stone Fireplace Set']);
+                                  }
+                                  toast.success(`Loaded ${style.label} staging preset.`);
+                                }}
+                                className={`text-center py-2 px-2.5 rounded text-[11.5px] font-bold transition-all border cursor-pointer ${
+                                  stagedFurnitureStyle === style.id
+                                    ? 'bg-[#604ae3] text-white border-[#604ae3]'
+                                    : 'bg-card text-muted-foreground border-border hover:bg-muted'
+                                }`}
+                              >
+                                {style.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Staged Items Listing */}
+                        <div className="space-y-2 border-t border-border/80 pt-3">
+                          <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Staging Inventory & Specs</label>
+                          {stagingInventory.length === 0 ? (
+                            <p className="text-[12px] text-muted-foreground italic">No furniture sets staged. Toggles styles above to populate.</p>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {stagingInventory.map((item, idx) => (
+                                <div key={idx} className="flex justify-between items-center p-2 rounded bg-muted/20 border border-border text-[12px]">
+                                  <div>
+                                    <span className="font-bold text-foreground block">{item}</span>
+                                    <span className="text-[10px] text-muted-foreground">Material: Standard Grade Wood / Fabric</span>
+                                  </div>
+                                  <span className="badge bg-soft-success text-success text-[10px] font-bold px-1.5 py-0.2 rounded shrink-0">Staged</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Staging Quote Pricing estimate */}
+                      {stagingInventory.length > 0 && (
+                        <div className="border-t border-border/80 pt-3 mt-4 space-y-1.5 bg-success/5 border border-success/20 p-2.5 rounded text-[12px]">
+                          <div className="flex justify-between font-bold">
+                            <span className="text-muted-foreground">Estimated Acquisition Budget:</span>
+                            <span className="text-success">${(stagingInventory.length * 850).toLocaleString()}</span>
+                          </div>
+                          <p className="text-[10.5px] text-muted-foreground/90 leading-tight">Projected staging rentals and logistics fee covered under standard Waveron staging contracts.</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

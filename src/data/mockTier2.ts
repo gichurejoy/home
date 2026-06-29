@@ -33,6 +33,12 @@ export interface Review {
   response?: string;
 }
 
+export interface DocumentSigner {
+  role: 'Agent' | 'Buyer' | 'Seller';
+  name: string;
+  status: 'Signed' | 'Pending';
+}
+
 export interface DocumentFile {
   id: string;
   entityId: string; // references propertyId or customerId
@@ -41,6 +47,7 @@ export interface DocumentFile {
   uploadedAt: string;
   category: 'Contract' | 'Disclosure' | 'Image' | 'Blueprint' | 'Other';
   url: string;
+  signers?: DocumentSigner[];
 }
 
 export const initialCalendarEvents: CalendarEvent[] = [
@@ -160,7 +167,12 @@ export const initialDocuments: DocumentFile[] = [
     size: "1.2 MB",
     uploadedAt: "2026-05-10",
     category: "Contract",
-    url: "#"
+    url: "#",
+    signers: [
+      { role: "Agent", name: "Michael A. Miner", status: "Signed" },
+      { role: "Buyer", name: "Sinikka Penttinen", status: "Pending" },
+      { role: "Seller", name: "Gaston Lapierre", status: "Pending" }
+    ]
   },
   {
     id: "DOC-002",

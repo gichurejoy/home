@@ -51,14 +51,65 @@ const initialNotifications = [
 ];
 
 export function Topbar() {
-  const { toggleSidebar, setSettingsOpen, topbarColor, sessionRole, setSessionRole, usersList } = useAppStore();
+  const { toggleSidebar, setSettingsOpen, topbarColor, sessionRole, setSessionRole, usersList, notifications, addNotification, clearNotifications, deleteNotification } = useAppStore();
   const searchOpen = useSearchStore((state) => state.open);
   
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
-  const [notifs, setNotifs] = useState(initialNotifications);
   const { theme, setTheme } = useTheme();
+
+  // Simulated real-time WebSocket notifications feed
+  useEffect(() => {
+    const alerts = [
+      {
+        type: "avatar" as const,
+        avatarInitial: "S",
+        avatarColor: "bg-soft-warning text-warning",
+        name: "Sinikka Penttinen",
+        message: "submitted an offer on Dvilla Residences Batu (PROP-001) for $900k.",
+        link: "/properties/PROP-001"
+      },
+      {
+        type: "icon" as const,
+        icon: "ri-calendar-event-line",
+        avatarColor: "bg-soft-info text-info",
+        name: "Schedule Coordinator",
+        message: "scheduled a new client showing for PROP-002 at 2:00 PM tomorrow.",
+        link: "/chats"
+      },
+      {
+        type: "avatar" as const,
+        avatarInitial: "M",
+        avatarColor: "bg-primary text-white",
+        name: "Michael A. Miner",
+        message: "completed the 'Drywall & Interior Utilities' milestone on PROP-001.",
+        link: "/properties/PROP-001"
+      },
+      {
+        type: "icon" as const,
+        icon: "ri-error-warning-line",
+        avatarColor: "bg-soft-danger text-danger",
+        name: "Regulatory Portal",
+        message: "notified: Zoning Variance Permit status updated to 'Approved' for PROP-001.",
+        link: "/properties/PROP-001"
+      }
+    ];
+
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < alerts.length) {
+        const alertItem = alerts[index];
+        addNotification(alertItem);
+        toast.info(`🔔 Notification: ${alertItem.name} ${alertItem.message}`);
+        index++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 75000); // Push a dynamic notification every 75 seconds
+
+    return () => clearInterval(interval);
+  }, [addNotification]);
 
   const currentUser = usersList.find((u) => u.role === sessionRole) || {
     name: "Dominic Keller",
@@ -101,12 +152,12 @@ export function Topbar() {
 
   const handleClearAllNotifs = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setNotifs([]);
+    clearNotifications();
     toast.success("All notifications cleared.");
   };
 
-  const handleNotifClick = (id: number, message: string) => {
-    setNotifs((prev) => prev.filter((n) => n.id !== id));
+  const handleNotifClick = (id: string, message: string) => {
+    deleteNotification(id);
     toast.info(`Opened: ${message.slice(0, 30)}...`);
     setNotifOpen(false);
   };
@@ -179,9 +230,9 @@ export function Topbar() {
               onClick={() => setNotifOpen(!notifOpen)}
             >
               <i className="ri-notification-3-line text-[22px]" />
-              {notifs.length > 0 && (
+              {notifications.length > 0 && (
                 <span className="absolute right-1.5 top-1 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[#ff5b5b] text-[10px] font-bold text-white animate-pulse">
-                  {notifs.length}
+                  {notifications.length}
                 </span>
               )}
             </button>
@@ -191,7 +242,7 @@ export function Topbar() {
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-dashed border-border bg-muted/10">
                   <h6 className="text-[14px] font-semibold text-foreground">Notifications</h6>
-                  {notifs.length > 0 && (
+                  {notifications.length > 0 && (
                     <button
                       onClick={handleClearAllNotifs}
                       className="text-[11.5px] text-primary hover:underline font-bold bg-transparent border-0 cursor-pointer"
@@ -202,13 +253,13 @@ export function Topbar() {
                 </div>
                 {/* Items */}
                 <div className="max-h-[280px] overflow-y-auto divide-y divide-border">
-                  {notifs.length === 0 ? (
+                  {notifications.length === 0 ? (
                     <div className="py-8 text-center text-muted-foreground text-[13px] flex flex-col items-center justify-center">
                       <i className="ri-notification-off-line text-[24px] mb-2 opacity-50" />
                       <span>No new notifications</span>
                     </div>
                   ) : (
-                    notifs.map((notif) => (
+                    notifications.map((notif) => (
                       <Link
                         key={notif.id}
                         href={notif.link}

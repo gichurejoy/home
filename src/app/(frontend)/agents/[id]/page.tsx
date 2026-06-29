@@ -1,6 +1,6 @@
 "use client";
 
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, ClosedDeal } from "@/store/useAppStore";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { use, useState } from "react";
@@ -12,6 +12,7 @@ export default function AgentDetails({ params }: { params: Promise<{ id: string 
   const resolvedParams = use(params);
   const { agents, closedDeals, properties } = useAppStore();
   const [isRecordDealOpen, setIsRecordDealOpen] = useState(false);
+  const [selectedDealForInvoice, setSelectedDealForInvoice] = useState<ClosedDeal | null>(null);
 
   // Resolve direct match (AGT-001) and numeric index matches (1, 01, etc.)
   const agent = agents.find((a) => {
@@ -270,23 +271,48 @@ export default function AgentDetails({ params }: { params: Promise<{ id: string 
                   </div>
                 </div>
 
-                {/* Cap Status Progress Bar */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-[12.5px] font-bold">
-                    <span className="text-muted-foreground">Annual Split Cap Status ($100K Limit)</span>
-                    <span className="text-foreground">${totalEarned.toLocaleString()} / $100,000 ({capMet}% Met)</span>
+                {/* SVG Radial Progress Gauge */}
+                <div className="flex flex-col md:flex-row items-center gap-6 py-2 border-b border-border/60 pb-4">
+                  <div className="relative h-28 w-28 shrink-0 flex items-center justify-center">
+                    <svg className="w-full h-full -rotate-90">
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r="44"
+                        className="stroke-muted/20 fill-none"
+                        strokeWidth="8"
+                      />
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r="44"
+                        className={`fill-none transition-all duration-1000 ${capMet >= 100 ? "stroke-[#0acf97]" : "stroke-primary"}`}
+                        strokeWidth="8"
+                        strokeDasharray={2 * Math.PI * 44}
+                        strokeDashoffset={2 * Math.PI * 44 * (1 - capMet / 100)}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute flex flex-col items-center justify-center">
+                      <span className="text-[16px] font-extrabold text-foreground">{capMet}%</span>
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase">Met</span>
+                    </div>
                   </div>
-                  <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-500 ${capMet >= 100 ? "bg-[#0acf97]" : "bg-[#604ae3]"}`}
-                      style={{ width: `${capMet}%` }}
-                    />
+
+                  <div className="space-y-1.5 flex-1 text-left">
+                    <h5 className="text-[13px] font-bold text-foreground">Annual Split Cap Status ($100K Limit)</h5>
+                    <p className="text-[12.5px] text-muted-foreground">
+                      Current Payout: <span className="font-bold text-foreground">${totalEarned.toLocaleString()}</span> / $100,000
+                    </p>
+                    <p className="text-[12.5px] text-muted-foreground">
+                      Brokerage Split Rate: <span className="font-bold text-foreground">{capMet >= 100 ? "0%" : "20%"}</span> (keeps {capMet >= 100 ? "100%" : "80%"})
+                    </p>
+                    <p className="text-[11.5px] text-muted-foreground">
+                      {capMet >= 100
+                        ? "🎉 Annual split cap reached! All remaining closed deal payouts are 100% credited to the agent."
+                        : `Agent needs $${(100000 - totalEarned).toLocaleString()} more in split payouts to achieve 100% commission rate.`}
+                    </p>
                   </div>
-                  <p className="text-[11.5px] text-muted-foreground">
-                    {capMet >= 100
-                      ? "🎉 Cap met! This agent is now on 100% commission splits for the remainder of the calendar year."
-                      : `Agent needs $${(100000 - totalEarned).toLocaleString()} more in split payouts to achieve 100% commission rate.`}
-                  </p>
                 </div>
 
                 {/* Split Ledger Table */}
@@ -303,12 +329,13 @@ export default function AgentDetails({ params }: { params: Promise<{ id: string 
                           <th className="pb-2.5">Split Ratio</th>
                           <th className="pb-2.5">Agent Payout</th>
                           <th className="pb-2.5 text-right">Status</th>
+                          <th className="pb-2.5 text-right">Statement</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border text-[12.5px] font-medium text-foreground/80">
                         {agentDeals.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="py-6 text-center text-muted-foreground">
+                            <td colSpan={6} className="py-6 text-center text-muted-foreground">
                               No deals closed yet.
                             </td>
                           </tr>
@@ -331,6 +358,15 @@ export default function AgentDetails({ params }: { params: Promise<{ id: string 
                                 }`}>
                                   {row.status}
                                 </span>
+                              </td>
+                              <td className="py-2.5 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedDealForInvoice(row)}
+                                  className="bg-primary/10 hover:bg-primary text-primary hover:text-white h-7 px-2.5 rounded text-[11px] font-bold transition-all inline-flex items-center gap-1 cursor-pointer border-0"
+                                >
+                                  <i className="ri-file-text-line" /> Statement
+                                </button>
                               </td>
                             </tr>
                           ))
@@ -576,6 +612,171 @@ export default function AgentDetails({ params }: { params: Promise<{ id: string 
         onClose={() => setIsRecordDealOpen(false)}
         defaultAgentId={agent.id}
       />
+
+      {selectedDealForInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
+          <div
+            id="print-settlement-modal"
+            className="w-full max-w-2xl bg-white text-gray-900 border border-gray-200 rounded-lg shadow-2xl p-6 relative overflow-y-auto max-h-[90vh]"
+          >
+            {/* Styles for print */}
+            <style dangerouslySetInnerHTML={{ __html: `
+              @media print {
+                body * {
+                  visibility: hidden !important;
+                }
+                #print-settlement-modal, #print-settlement-modal * {
+                  visibility: visible !important;
+                }
+                #print-settlement-modal {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 100% !important;
+                  border: none !important;
+                  box-shadow: none !important;
+                  background: white !important;
+                  color: black !important;
+                  padding: 0 !important;
+                  margin: 0 !important;
+                }
+                .no-print {
+                  display: none !important;
+                }
+              }
+            `}} />
+
+            {/* Header */}
+            <div className="flex justify-between items-start border-b border-gray-200 pb-4 mb-4">
+              <div>
+                <h3 className="text-lg font-bold tracking-tight text-gray-900">WAVERON REAL ESTATE SERVICES</h3>
+                <p className="text-xs text-gray-500 font-medium">Brokerage Commission Settlement Statement</p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-mono font-bold text-gray-600 block">Statement ID: #{selectedDealForInvoice.id}</span>
+                <span className="text-xs text-gray-500">Closing Date: {selectedDealForInvoice.closeDate}</span>
+              </div>
+            </div>
+
+            {/* Agent / Broker Info */}
+            <div className="grid grid-cols-2 gap-4 text-xs mb-6 bg-gray-50 p-3 rounded">
+              <div>
+                <p className="text-gray-500 font-bold uppercase tracking-wider text-[10px]">Recipient Agent</p>
+                <p className="font-bold text-gray-800 text-[13px]">{agent.name}</p>
+                <p className="text-gray-500">{agent.email}</p>
+                <p className="text-gray-500">License: {agent.license}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-gray-500 font-bold uppercase tracking-wider text-[10px]">Brokerage Office</p>
+                <p className="font-bold text-gray-800 text-[13px]">{agent.agency}</p>
+                <p className="text-gray-500">{agent.address}</p>
+                <p className="text-gray-500">Authorized: Gaston Lapierre</p>
+              </div>
+            </div>
+
+            {/* Property Details */}
+            <div className="space-y-4">
+              <h5 className="text-[13px] font-bold text-gray-800 border-b border-gray-100 pb-1 uppercase tracking-wider">Transaction Summary</h5>
+              <div className="grid grid-cols-2 gap-y-2 text-xs">
+                <span className="text-gray-500">Property Title:</span>
+                <span className="font-bold text-gray-900 text-right">{selectedDealForInvoice.propertyTitle}</span>
+
+                <span className="text-gray-500">Resale Price:</span>
+                <span className="font-bold text-gray-900 text-right">${selectedDealForInvoice.price.toLocaleString()}</span>
+
+                <span className="text-gray-500">Buyer Name:</span>
+                <span className="font-bold text-gray-900 text-right">{selectedDealForInvoice.buyerName}</span>
+
+                <span className="text-gray-500">Tier Ratio Applied:</span>
+                <span className="font-bold text-gray-900 text-right text-primary">{selectedDealForInvoice.splitRatio}</span>
+              </div>
+
+              {/* Commission Splits Calculation Sheet */}
+              <h5 className="text-[13px] font-bold text-gray-800 border-b border-gray-100 pb-1 pt-2 uppercase tracking-wider">Calculations Sheet</h5>
+              <div className="overflow-hidden border border-gray-200 rounded">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-gray-50 font-bold text-gray-700">
+                    <tr>
+                      <th className="p-2 border-b border-gray-200">Item</th>
+                      <th className="p-2 border-b border-gray-200 text-right">Calculation</th>
+                      <th className="p-2 border-b border-gray-200 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 font-medium text-gray-600">
+                    <tr>
+                      <td className="p-2">Gross Commission</td>
+                      <td className="p-2 text-right">6.00% commission rate</td>
+                      <td className="p-2 text-right font-bold text-gray-800">${selectedDealForInvoice.grossCommission.toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2">Brokerage Split Cut</td>
+                      <td className="p-2 text-right">
+                        {selectedDealForInvoice.splitRatio.includes("Cap-Met") ? "Cap Reached (0%)" : "20% Tiers Rate"}
+                      </td>
+                      <td className="p-2 text-right text-red-500">
+                        -${selectedDealForInvoice.splitRatio.includes("Cap-Met") ? "0" : (selectedDealForInvoice.grossCommission - selectedDealForInvoice.agentPayout).toLocaleString()}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="p-2">Gross Agent Distribution</td>
+                      <td className="p-2 text-right">
+                        {selectedDealForInvoice.splitRatio.includes("Cap-Met") ? "100.00% split" : "80.00% split"}
+                      </td>
+                      <td className="p-2 text-right font-bold text-gray-800">${selectedDealForInvoice.agentPayout.toLocaleString()}</td>
+                    </tr>
+                    <tr className="bg-gray-50/50">
+                      <td className="p-2">1099 Tax Withholding Estimate</td>
+                      <td className="p-2 text-right">20% safety holdback</td>
+                      <td className="p-2 text-right text-red-500">
+                        -${Math.round(selectedDealForInvoice.agentPayout * 0.20).toLocaleString()}
+                      </td>
+                    </tr>
+                    <tr className="font-bold text-gray-900 bg-gray-50 text-[13px]">
+                      <td className="p-2">Net Agent Payout</td>
+                      <td className="p-2 text-right">Take-home Balance</td>
+                      <td className="p-2 text-right text-success font-extrabold">
+                        ${Math.round(selectedDealForInvoice.agentPayout * 0.80).toLocaleString()}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Signatures */}
+            <div className="grid grid-cols-2 gap-12 mt-8 pt-8 border-t border-dashed border-gray-200 text-xs">
+              <div className="text-center">
+                <div className="h-8 border-b border-gray-300 mb-1" />
+                <p className="text-gray-500">Agent Signature</p>
+              </div>
+              <div className="text-center">
+                <div className="h-8 border-b border-gray-300 mb-1 flex items-center justify-center font-serif italic text-gray-400">
+                  Gaston Lapierre
+                </div>
+                <p className="text-gray-500">Managing Broker Signature</p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100 no-print">
+              <button
+                type="button"
+                onClick={() => setSelectedDealForInvoice(null)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded text-xs font-bold transition-all border-0 cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="bg-primary hover:bg-[#4d36cd] text-white px-4 py-2 rounded text-xs font-bold transition-all flex items-center gap-1 border-0 cursor-pointer"
+              >
+                <i className="ri-printer-line" /> Print / Save PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

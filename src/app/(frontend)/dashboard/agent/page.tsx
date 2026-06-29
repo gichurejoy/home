@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useRef } from "react";
 import { SalesFunnelChart } from "@/components/charts/SalesFunnelChart";
@@ -517,8 +517,8 @@ export default function AgentDashboard() {
                 </div>
 
                 {/* Outputs (Col-5) */}
-                <div className="lg:col-span-5 border border-border rounded-[8px] bg-muted/10 p-4 space-y-3.5">
-                  <h5 className="text-[12.5px] font-bold text-foreground">Compensation Payout Breakdown</h5>
+                <div className="lg:col-span-5 border border-border rounded-[8px] bg-muted/10 p-4 space-y-3.5 text-left">
+                  <h5 className="text-[12.5px] font-bold text-foreground">Brokerage Split Plans comparison</h5>
                   
                   {/* Calculations */}
                   {(() => {
@@ -557,36 +557,86 @@ export default function AgentDashboard() {
                       triggerToast(`Logged deal of $${dealVolume.toLocaleString()}! Added $${Math.round(agentPayout).toLocaleString()} agent split to payroll.`);
                     };
 
+                    const plans = [
+                      { name: "Bronze Plan", split: "70/30", agentPct: 0.70, cap: "No Cap Limit", highlight: false },
+                      { name: "Gold Plan", split: "80/20", agentPct: 0.80, cap: "$20,000 Cap Limit", highlight: splitRate <= 80 && splitRate > 70 },
+                      { name: "Platinum Plan", split: "90/10", agentPct: 0.90, cap: "$10,000 Cap Limit", highlight: splitRate > 80 || splitRate === 90 }
+                    ];
+
+                    const maxAgentPayout = Math.max(...plans.map(p => gross * p.agentPct));
+
                     return (
-                      <div className="space-y-2.5 text-[13px] font-medium text-muted-foreground">
-                        <div className="flex justify-between pb-1.5 border-b border-border">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center pb-2 border-b border-border text-[13px] font-bold text-foreground">
                           <span>Gross Agency Commission:</span>
-                          <span className="font-bold text-foreground">
+                          <span className="text-primary text-[15px] font-black">
                             {gross.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
                           </span>
                         </div>
-                        <div className="flex justify-between pb-1.5 border-b border-border">
-                          <span className="flex items-center gap-1.5">
-                            <span className="h-2.5 w-2.5 rounded-full bg-success block" /> Agent Share ({splitRate}%):
-                          </span>
-                          <span className="font-bold text-[#0acf97]">
-                            {agentPayout.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
-                          </span>
-                        </div>
-                        <div className="flex justify-between pb-1.5 border-b border-border">
-                          <span className="flex items-center gap-1.5">
-                            <span className="h-2.5 w-2.5 rounded-full bg-primary block" /> Brokerage Share ({100 - splitRate}%):
-                          </span>
-                          <span className="font-bold text-primary">
-                            {brokerCut.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
-                          </span>
+
+                        {/* Interactive plan comparative cards */}
+                        <div className="space-y-2.5">
+                          {plans.map((plan) => {
+                            const pAgent = Math.round(gross * plan.agentPct);
+                            const pBroker = Math.round(gross - pAgent);
+                            const isBest = pAgent === Math.round(maxAgentPayout);
+
+                            return (
+                              <div
+                                key={plan.name}
+                                className={`p-3 rounded-lg border text-left transition-all ${
+                                  isBest
+                                    ? "border-[#0acf97] bg-[#0acf97]/5 shadow-sm ring-1 ring-[#0acf97]/25 scale-[1.01]"
+                                    : "border-border bg-card"
+                                }`}
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className="font-bold text-[12.5px] text-foreground flex items-center gap-1.5">
+                                    {plan.name}
+                                    {isBest && (
+                                      <span className="bg-[#0acf97] text-white text-[9px] font-extrabold px-1.5 py-0.2 rounded uppercase">Best Payout</span>
+                                    )}
+                                  </span>
+                                  <span className="text-[11px] font-bold text-muted-foreground">{plan.split} Split</span>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-2 mt-2 text-[12px] font-medium leading-tight">
+                                  <div>
+                                    <span className="text-muted-foreground block text-[9.5px] uppercase font-bold tracking-wider mb-0.5">Agent Share</span>
+                                    <span className={`font-bold ${isBest ? "text-[#0acf97]" : "text-foreground"}`}>
+                                      ${pAgent.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-muted-foreground block text-[9.5px] uppercase font-bold tracking-wider mb-0.5">Brokerage Cut</span>
+                                    <span className="font-bold text-foreground">${pBroker.toLocaleString()}</span>
+                                  </div>
+                                </div>
+                                <span className="text-[9.5px] font-semibold text-muted-foreground mt-1 block border-t border-border/30 pt-1">
+                                  {plan.cap}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
 
-                        <div className="pt-2">
+                        {/* Custom selection tracker panel */}
+                        <div className="bg-card border border-border rounded-lg p-2.5 text-[12px] font-semibold space-y-1 text-muted-foreground">
+                          <div className="flex justify-between">
+                            <span>Selected Custom Split ({splitRate}%):</span>
+                            <span className="text-foreground">${Math.round(agentPayout).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Selected Broker Cut ({100 - splitRate}%):</span>
+                            <span className="text-foreground">${Math.round(brokerCut).toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-1">
                           <button
                             type="button"
                             onClick={handleLogDeal}
-                            className="w-full bg-[#0acf97] hover:bg-[#0acf97]/95 text-white text-[12.5px] font-bold py-2 rounded-[5px] flex items-center justify-center gap-1 transition-all active:scale-[0.98]"
+                            className="w-full bg-[#0acf97] hover:bg-[#0acf97]/95 text-white text-[12.5px] font-bold py-2 rounded-[5px] flex items-center justify-center gap-1 transition-all active:scale-[0.98] cursor-pointer"
                           >
                             <iconify-icon icon="solar:check-circle-broken" /> Log Deal & Submit splits
                           </button>

@@ -8,6 +8,7 @@ import {
   EntityNote, 
   Review, 
   DocumentFile,
+  DocumentSigner,
   initialCalendarEvents,
   initialReviews,
   initialNotes,
@@ -68,6 +69,61 @@ export interface ZoningPermit {
   documentName?: string;
   documentUrl?: string;
 }
+
+export interface NotificationItem {
+  id: string;
+  type: "avatar" | "initial" | "icon";
+  avatarInitial?: string;
+  icon?: string;
+  avatarColor: string;
+  name: string;
+  message: string;
+  time: string;
+  link: string;
+}
+
+export const initialNotifications: NotificationItem[] = [
+  {
+    id: "NTF-001",
+    type: "avatar",
+    avatarInitial: "J",
+    avatarColor: "bg-[#604ae3]",
+    name: "Josephine Thompson",
+    message: 'commented on admin panel "Wow 😍! this admin looks good and awesome design"',
+    time: "2 min ago",
+    link: "/chats",
+  },
+  {
+    id: "NTF-002",
+    type: "initial",
+    avatarInitial: "D",
+    avatarColor: "bg-soft-info text-info",
+    name: "Donoghue Susan",
+    message: "Hi, How are you? What about our next meeting",
+    time: "1 hr ago",
+    link: "/chats",
+  },
+  {
+    id: "NTF-003",
+    type: "initial",
+    avatarInitial: "J",
+    avatarColor: "bg-[#3d4654] text-white",
+    name: "Jacob Gines",
+    message: "Answered to your comment on the cash flow forecast's graph 🔔.",
+    time: "3 hr ago",
+    link: "/chats",
+  },
+  {
+    id: "NTF-004",
+    type: "icon",
+    icon: "ri-leaf-line",
+    avatarColor: "bg-soft-warning text-warning",
+    name: "Karen Robinson",
+    message: "Wow 😍! this admin looks good and awesome design",
+    time: "1 day ago",
+    link: "/chats",
+  }
+];
 
 export const initialRenovationExpenses: RenovationExpense[] = [
   {
@@ -309,12 +365,20 @@ interface AppState {
 
   resetSettings: () => void;
   resetStore: () => void;
+
+  notifications: NotificationItem[];
+  addNotification: (notif: Omit<NotificationItem, 'id' | 'time'>) => void;
+  clearNotifications: () => void;
+  deleteNotification: (id: string) => void;
+  updateCustomerStatus: (id: string, status: Customer['listStatus']) => void;
+  updateDocumentSignatures: (id: string, signers: DocumentSigner[]) => void;
 }
 
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       sidebarOpen: true,
+      notifications: initialNotifications,
       toggleSidebar: () => set((state) => {
         const isMobile = typeof window !== 'undefined' && window.innerWidth < 1280;
         if (isMobile) {
@@ -427,13 +491,26 @@ export const useAppStore = create<AppState>()(
           ip: `192.168.1.102`
         };
     
+        const notifId = `NTF-${Math.floor(1000 + Math.random() * 9000)}`;
+        const newNotif: NotificationItem = {
+          id: notifId,
+          type: "icon",
+          icon: "ri-exchange-dollar-line",
+          avatarColor: "bg-soft-success text-success",
+          name: deal.buyerName,
+          message: `closed a deal on ${deal.propertyTitle} for $${deal.price.toLocaleString()}`,
+          time: "Just now",
+          link: `/agents/${deal.agentId}`
+        };
+
         return {
           closedDeals: [newDeal, ...state.closedDeals],
           properties: updatedProperties,
           agents: updatedAgents,
           customers: updatedCustomers,
           calendarEvents: [closingEvent, ...state.calendarEvents],
-          auditLogs: [newLog, ...state.auditLogs]
+          auditLogs: [newLog, ...state.auditLogs],
+          notifications: [newNotif, ...state.notifications]
         };
       }),
     
@@ -461,9 +538,22 @@ export const useAppStore = create<AppState>()(
           timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
           ip: `192.168.1.102`
         };
+        const notifId = `NTF-${Math.floor(1000 + Math.random() * 9000)}`;
+        const newNotif: NotificationItem = {
+          id: notifId,
+          type: "icon",
+          icon: "ri-home-4-line",
+          avatarColor: "bg-soft-primary text-primary",
+          name: activeUser.name,
+          message: `added a new listing: ${property.title} for $${property.price.toLocaleString()}`,
+          time: "Just now",
+          link: "/"
+        };
+
         return {
           properties: [newProp, ...state.properties],
-          auditLogs: [newLog, ...state.auditLogs]
+          auditLogs: [newLog, ...state.auditLogs],
+          notifications: [newNotif, ...state.notifications]
         };
       }),
 
@@ -641,8 +731,29 @@ export const useAppStore = create<AppState>()(
         auditLogs: initialAuditLogs,
         expenses: initialRenovationExpenses,
         milestones: initialConstructionMilestones,
-        permits: initialZoningPermits
+        permits: initialZoningPermits,
+        notifications: initialNotifications
       }),
+
+      addNotification: (notif) => set((state) => {
+        const newId = `NTF-${Math.floor(1000 + Math.random() * 9000)}`;
+        const newItem: NotificationItem = {
+          ...notif,
+          id: newId,
+          time: "Just now"
+        };
+        return { notifications: [newItem, ...state.notifications] };
+      }),
+      clearNotifications: () => set({ notifications: [] }),
+      deleteNotification: (id) => set((state) => ({
+        notifications: state.notifications.filter(n => n.id !== id)
+      })),
+      updateCustomerStatus: (id, status) => set((state) => ({
+        customers: state.customers.map((c) => c.id === id ? { ...c, listStatus: status } : c)
+      })),
+      updateDocumentSignatures: (id, signers) => set((state) => ({
+        documents: state.documents.map((d) => d.id === id ? { ...d, signers } : d)
+      })),
 
       // Tier 3 Actions Implementation
       completeOnboarding: (profile) => set({

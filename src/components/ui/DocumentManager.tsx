@@ -4,17 +4,19 @@ import { useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { toast } from "@/store/useToastStore";
 import { FileText, Download, Trash2, UploadCloud } from "lucide-react";
+import { DocumentFile, DocumentSigner } from "@/data/mockTier2";
 
 interface DocumentManagerProps {
   entityId: string;
 }
 
 export function DocumentManager({ entityId }: DocumentManagerProps) {
-  const { documents, addDocument, deleteDocument } = useAppStore();
+  const { documents, addDocument, deleteDocument, updateDocumentSignatures } = useAppStore();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileName, setFileName] = useState("");
   const [category, setCategory] = useState<'Contract' | 'Disclosure' | 'Image' | 'Blueprint' | 'Other'>('Contract');
+  const [signingDoc, setSigningDoc] = useState<DocumentFile | null>(null);
 
   const entityDocs = documents.filter(d => d.entityId === entityId);
 
@@ -34,7 +36,12 @@ export function DocumentManager({ entityId }: DocumentManagerProps) {
             name,
             size: `${(Math.random() * 5 + 0.5).toFixed(1)} MB`,
             category,
-            url: "#"
+            url: "#",
+            signers: category === 'Contract' ? [
+              { role: 'Agent', name: 'Authorized Agent', status: 'Pending' },
+              { role: 'Buyer', name: 'Buyer Client', status: 'Pending' },
+              { role: 'Seller', name: 'Seller Client', status: 'Pending' }
+            ] : undefined
           });
 
           setIsUploading(false);
@@ -140,53 +147,149 @@ export function DocumentManager({ entityId }: DocumentManagerProps) {
             entityDocs.map(doc => (
               <div
                 key={doc.id}
-                className="border border-border/80 hover:border-border rounded-lg p-3 bg-muted/10 flex items-center justify-between gap-3 group transition-colors"
+                className="border border-border/80 hover:border-border rounded-lg p-3 bg-muted/10 flex flex-col justify-between gap-3 group transition-colors"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-9 w-9 bg-primary/10 rounded flex items-center justify-center shrink-0 text-primary">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h5 className="text-[13px] font-bold text-foreground truncate leading-snug group-hover:text-primary transition-colors">
-                      {doc.name}
-                    </h5>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[9.5px] font-extrabold uppercase px-1.5 py-0.2 rounded border ${getCategoryColor(doc.category)}`}>
-                        {doc.category}
-                      </span>
-                      <span className="text-[10.5px] text-muted-foreground font-semibold">
-                        {doc.size} &bull; {doc.uploadedAt}
-                      </span>
+                <div className="flex items-center justify-between gap-3 w-full">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-9 w-9 bg-primary/10 rounded flex items-center justify-center shrink-0 text-primary">
+                      <FileText className="h-5 w-5" />
                     </div>
+                    <div className="min-w-0 text-left">
+                      <h5 className="text-[13px] font-bold text-foreground truncate leading-snug group-hover:text-primary transition-colors">
+                        {doc.name}
+                      </h5>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-[9.5px] font-extrabold uppercase px-1.5 py-0.2 rounded border ${getCategoryColor(doc.category)}`}>
+                          {doc.category}
+                        </span>
+                        <span className="text-[10.5px] text-muted-foreground font-semibold">
+                          {doc.size} &bull; {doc.uploadedAt}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {doc.category === 'Contract' && (
+                      <button
+                        onClick={() => setSigningDoc(doc)}
+                        className="h-8 w-8 rounded hover:bg-primary/10 text-primary flex items-center justify-center transition-all border-0 bg-transparent cursor-pointer"
+                        title="Manage Signatures"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </button>
+                    )}
+                    <a
+                      href={doc.url}
+                      className="h-8 w-8 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-all"
+                      title="Download File"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toast.success(`Downloaded: ${doc.name}`);
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                    </a>
+                    <button
+                      onClick={() => handleDelete(doc.id)}
+                      className="h-8 w-8 rounded hover:bg-danger/10 text-muted-foreground hover:text-danger flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 border-0 bg-transparent cursor-pointer"
+                      title="Delete File"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <a
-                    href={doc.url}
-                    className="h-8 w-8 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-all"
-                    title="Download File"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      toast.success(`Downloaded: ${doc.name}`);
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                  </a>
-                  <button
-                    onClick={() => handleDelete(doc.id)}
-                    className="h-8 w-8 rounded hover:bg-danger/10 text-muted-foreground hover:text-danger flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-                    title="Delete File"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                {/* Inline signature badge row for contracts */}
+                {doc.category === 'Contract' && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-border/40 text-left">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase mr-1">Signatures:</span>
+                    {(doc.signers || [
+                      { role: "Agent", name: "Agent", status: "Pending" },
+                      { role: "Buyer", name: "Buyer", status: "Pending" },
+                      { role: "Seller", name: "Seller", status: "Pending" }
+                    ]).map((signer) => (
+                      <span
+                        key={signer.role}
+                        className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded flex items-center gap-0.5 ${
+                          signer.status === 'Signed' ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'
+                        }`}
+                        title={`${signer.role} (${signer.name}): ${signer.status}`}
+                      >
+                        {signer.role}: {signer.status === 'Signed' ? '✅ Signed' : '⏳ Pending'}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))
           )}
         </div>
       </div>
+
+      {signingDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-card border border-border rounded-lg shadow-2xl p-5 relative space-y-4">
+            <div className="text-left">
+              <h4 className="font-bold text-[15px] text-foreground">Document Signatures</h4>
+              <p className="text-[11.5px] text-muted-foreground truncate" title={signingDoc.name}>
+                {signingDoc.name}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {((signingDoc.signers || [
+                { role: "Agent", name: "Agent", status: "Pending" },
+                { role: "Buyer", name: "Buyer", status: "Pending" },
+                { role: "Seller", name: "Seller", status: "Pending" }
+              ]) as DocumentSigner[]).map((signer) => {
+                const currentSigners = signingDoc.signers || [
+                  { role: "Agent", name: "Agent", status: "Pending" },
+                  { role: "Buyer", name: "Buyer", status: "Pending" },
+                  { role: "Seller", name: "Seller", status: "Pending" }
+                ];
+                
+                return (
+                  <div key={signer.role} className="flex items-center justify-between p-2 rounded bg-muted/20 border border-border">
+                    <div className="text-left">
+                      <p className="text-[9.5px] font-bold text-muted-foreground uppercase tracking-wider">{signer.role}</p>
+                      <p className="text-[12.5px] font-bold text-foreground">{signer.name}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const updatedSigners: DocumentSigner[] = currentSigners.map((s: DocumentSigner) =>
+                          s.role === signer.role ? { ...s, status: (s.status === 'Signed' ? 'Pending' : 'Signed') as 'Pending' | 'Signed' } : s
+                        );
+                        updateDocumentSignatures(signingDoc.id, updatedSigners);
+                        setSigningDoc({ ...signingDoc, signers: updatedSigners });
+                        toast.success(`Updated ${signer.role} signature status.`);
+                      }}
+                      className={`text-[11px] font-bold px-2.5 py-1 rounded cursor-pointer transition-all border-0 ${
+                        signer.status === 'Signed'
+                          ? 'bg-success text-white'
+                          : 'bg-warning text-white'
+                      }`}
+                    >
+                      {signer.status === 'Signed' ? 'Signed' : 'Pending'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-border/85">
+              <button
+                type="button"
+                onClick={() => setSigningDoc(null)}
+                className="bg-primary hover:bg-[#4d36cd] text-white px-4 py-1.5 rounded text-xs font-bold transition-all border-0 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

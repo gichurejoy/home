@@ -102,6 +102,7 @@ const navigation: { section: string; items: NavItem[] }[] = [
           { title: "Pricing", href: "/pages/pricing" },
           { title: "User Roles Matrix", href: "/settings/rbac" },
           { title: "Security Audit Logs", href: "/settings/audit-logs" },
+          { title: "Branding Customizer", href: "/settings/branding" },
         ],
       },
       {

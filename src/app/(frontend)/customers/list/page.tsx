@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { customers as initialCustomers, Customer } from "@/data/mockCustomers";
+import { Customer } from "@/data/mockCustomers";
 import { useToastStore, toast } from "@/store/useToastStore";
+import { useAppStore } from "@/store/useAppStore";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -11,15 +12,21 @@ import Link from "next/link";
 import { Users } from "lucide-react";
 
 export default function CustomerList() {
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const { customers: storeCustomers, updateCustomerStatus } = useAppStore();
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("All");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const itemsPerPage = 6;
+  const [activeTab, setActiveTab] = useState<"List" | "Kanban">("List");
 
   const confirm = useToastStore((state) => state.confirm);
+
+  const customers = useMemo(() => {
+    return storeCustomers.filter((c) => !deletedIds.includes(c.id));
+  }, [storeCustomers, deletedIds]);
 
   // Simulate loading state
   useEffect(() => {
@@ -85,7 +92,7 @@ export default function CustomerList() {
       cancelText: "Cancel",
     });
     if (ok) {
-      setCustomers(customers.filter((c) => c.id !== id));
+      setDeletedIds((prev) => [...prev, id]);
       setSelectedRows((prev) => prev.filter((rowId) => rowId !== id));
       toast.success("Customer removed successfully.");
     }
@@ -100,7 +107,7 @@ export default function CustomerList() {
       cancelText: "Cancel",
     });
     if (ok) {
-      setCustomers(customers.filter((c) => !selectedRows.includes(c.id)));
+      setDeletedIds((prev) => [...prev, ...selectedRows]);
       setSelectedRows([]);
       toast.success("Selected customers deleted successfully.");
     }
@@ -202,6 +209,24 @@ export default function CustomerList() {
                 <i className="ri-trash-line text-[15px]" /> Delete Selected ({selectedRows.length})
               </button>
             )}
+            <button
+              onClick={() => setActiveTab("List")}
+              className={`border h-9 px-3 rounded-[5px] flex items-center gap-1.5 transition-colors cursor-pointer text-[12.5px] font-bold ${
+                activeTab === "List" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:bg-muted"
+              }`}
+              title="List View"
+            >
+              <i className="ri-list-check" /> List
+            </button>
+            <button
+              onClick={() => setActiveTab("Kanban")}
+              className={`border h-9 px-3 rounded-[5px] flex items-center gap-1.5 transition-colors cursor-pointer text-[12.5px] font-bold ${
+                activeTab === "Kanban" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:bg-muted"
+              }`}
+              title="Kanban Board"
+            >
+              <i className="ri-kanban-view" /> Kanban
+            </button>
             <Link
               href="/customers/grid"
               className="border border-border hover:bg-muted text-muted-foreground hover:text-foreground h-9 w-9 rounded-[5px] flex items-center justify-center transition-colors text-[16px]"
@@ -245,6 +270,11 @@ export default function CustomerList() {
               window.location.href = "/customers/add";
             }
           }}
+        />
+      ) : activeTab === "Kanban" ? (
+        <KanbanBoardView
+          customers={filteredCustomers}
+          updateCustomerStatus={updateCustomerStatus}
         />
       ) : (
         <div className="bg-card border border-border rounded-[8px] shadow-[0_0_35px_rgba(154,161,171,0.05)] overflow-hidden">
@@ -439,6 +469,114 @@ export default function CustomerList() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+interface KanbanBoardViewProps {
+  customers: Customer[];
+  updateCustomerStatus: (id: string, status: Customer["listStatus"]) => void;
+}
+
+function KanbanBoardView({ customers, updateCustomerStatus }: KanbanBoardViewProps) {
+  const columns: { id: Customer["listStatus"]; label: string; bg: string; text: string; border: string }[] = [
+    { id: "Interested", label: "Interested", bg: "bg-warning/10", text: "text-warning", border: "border-warning/30" },
+    { id: "Under Review", label: "Under Review", bg: "bg-info/10", text: "text-info", border: "border-info/30" },
+    { id: "Follow-up", label: "Follow-up", bg: "bg-primary/10", text: "text-primary", border: "border-primary/30" },
+    { id: "Offer Submitted", label: "Offer Submitted", bg: "bg-success/10", text: "text-success", border: "border-success/30" },
+    { id: "Closed", label: "Closed / Won", bg: "bg-slate-500/10", text: "text-slate-500", border: "border-slate-500/30" },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-6 overflow-x-auto pb-4">
+      {columns.map((column, colIdx) => {
+        const columnCustomers = customers.filter(c => c.listStatus === column.id);
+
+        return (
+          <div key={column.id} className="flex flex-col min-w-[220px] bg-muted/10 border border-border rounded-[8px] p-3 h-[600px] shrink-0">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-border/80 mb-3 shrink-0">
+              <div className="flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${column.text === "text-primary" ? "bg-[#604ae3]" : column.text.replace("text-", "bg-")}`} />
+                <h5 className="font-bold text-[13px] text-foreground">{column.label}</h5>
+              </div>
+              <span className="bg-muted text-muted-foreground text-[10.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                {columnCustomers.length}
+              </span>
+            </div>
+
+            {/* List scroll */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {columnCustomers.length === 0 ? (
+                <div className="h-28 border border-dashed border-border rounded-[6px] flex items-center justify-center text-center text-muted-foreground text-[12px] italic p-4">
+                  No customers
+                </div>
+              ) : (
+                columnCustomers.map((customer) => (
+                  <div key={customer.id} className="bg-card border border-border rounded-[6px] p-3 shadow-sm hover:shadow-md transition-shadow space-y-2.5 relative">
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={customer.avatar}
+                        alt={customer.name}
+                        className="w-8 h-8 rounded-full object-cover border border-border shrink-0"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${customer.name}`;
+                        }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          href={`/customers/${customer.id}`}
+                          className="font-bold text-[13px] text-foreground hover:text-primary transition-colors block truncate"
+                        >
+                          {customer.name}
+                        </Link>
+                        <span className="text-[9.5px] text-muted-foreground block truncate">{customer.location}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] text-muted-foreground space-y-1">
+                      <p className="truncate"><span className="font-bold text-foreground">Type:</span> {customer.propertyType}</p>
+                      <p className="truncate"><span className="font-bold text-foreground">Phone:</span> {customer.phone}</p>
+                      <p><span className="font-bold text-foreground">Invested:</span> <span className="text-success font-bold">${customer.investOnProperty.toLocaleString()}</span></p>
+                    </div>
+
+                    {/* Controls to move columns */}
+                    <div className="flex items-center justify-between pt-2 border-t border-border/60">
+                      <button
+                        disabled={colIdx === 0}
+                        onClick={() => {
+                          const prevStatus = columns[colIdx - 1].id;
+                          updateCustomerStatus(customer.id, prevStatus);
+                          toast.success(`Moved ${customer.name} back to ${columns[colIdx - 1].label}`);
+                        }}
+                        className="text-muted-foreground hover:text-primary disabled:opacity-30 disabled:pointer-events-none p-1 transition-colors bg-transparent border-0 cursor-pointer"
+                        title="Move Left"
+                      >
+                        <i className="ri-arrow-left-line text-[15px]" />
+                      </button>
+                      
+                      <span className="text-[9px] font-bold text-muted-foreground/60 uppercase">Move</span>
+
+                      <button
+                        disabled={colIdx === columns.length - 1}
+                        onClick={() => {
+                          const nextStatus = columns[colIdx + 1].id;
+                          updateCustomerStatus(customer.id, nextStatus);
+                          toast.success(`Moved ${customer.name} to ${columns[colIdx + 1].label}`);
+                        }}
+                        className="text-muted-foreground hover:text-primary disabled:opacity-30 disabled:pointer-events-none p-1 transition-colors bg-transparent border-0 cursor-pointer"
+                        title="Move Right"
+                      >
+                        <i className="ri-arrow-right-line text-[15px]" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

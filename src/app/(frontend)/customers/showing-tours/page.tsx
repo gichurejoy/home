@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "@/store/useToastStore";
 
 interface TourProperty {
   id: string;
@@ -10,6 +11,9 @@ interface TourProperty {
   beds: number;
   baths: number;
   status: "Completed" | "Current" | "Upcoming";
+  lat: number;
+  lng: number;
+  address: string;
 }
 
 interface SubmittedFeedback {
@@ -29,6 +33,9 @@ const initialTourProperties: TourProperty[] = [
     beds: 4,
     baths: 3.5,
     status: "Current",
+    lat: 34.0522,
+    lng: -118.2437,
+    address: "104 Pine Road, Los Angeles, CA"
   },
   {
     id: "PROP-002",
@@ -38,6 +45,9 @@ const initialTourProperties: TourProperty[] = [
     beds: 5,
     baths: 5,
     status: "Upcoming",
+    lat: 34.0888,
+    lng: -118.4061,
+    address: "882 Sunset Hills Rd, West Hollywood, CA"
   },
   {
     id: "PROP-003",
@@ -47,6 +57,9 @@ const initialTourProperties: TourProperty[] = [
     beds: 3,
     baths: 2.5,
     status: "Upcoming",
+    lat: 34.0625,
+    lng: -118.3582,
+    address: "415 N Oasis Ave, Beverly Hills, CA"
   },
 ];
 
@@ -60,6 +73,42 @@ export default function ShowingTours() {
   const [phoneNotes, setPhoneNotes] = useState("");
   const [tourCompleted, setTourCompleted] = useState(false);
   const [showReport, setShowReport] = useState(false);
+
+  // Geographic sequence optimization (TSP Nearest-Neighbor)
+  const handleOptimizeRoute = () => {
+    // Start with the first element as the root anchor
+    const optimized = [tourProps[0]];
+    const remaining = tourProps.slice(1);
+    
+    let current = tourProps[0];
+    while (remaining.length > 0) {
+      let nearestIdx = 0;
+      let minDist = Infinity;
+      for (let i = 0; i < remaining.length; i++) {
+        const dist = Math.sqrt(
+          Math.pow(remaining[i].lat - current.lat, 2) +
+          Math.pow(remaining[i].lng - current.lng, 2)
+        );
+        if (dist < minDist) {
+          minDist = dist;
+          nearestIdx = i;
+        }
+      }
+      current = remaining[nearestIdx];
+      optimized.push(current);
+      remaining.splice(nearestIdx, 1);
+    }
+    
+    const finalProps = optimized.map((p, idx) => ({
+      ...p,
+      status: idx === 0 ? ("Current" as const) : ("Upcoming" as const)
+    }));
+    
+    setTourProps(finalProps);
+    setCurrentStopIndex(0);
+    setTourCompleted(false);
+    toast.success("Optimal showing route computed using nearest-neighbor navigation!");
+  };
 
   // Submit rating inside the phone mockup
   const handlePhoneSubmit = () => {
@@ -131,13 +180,22 @@ export default function ShowingTours() {
             B2B Interactive Demo: Experience agent dashboard updates as the buyer rates properties on their phone during a showing tour.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleResetSimulation}
-          className="bg-muted/65 hover:bg-muted text-foreground border border-border text-[12.5px] font-bold px-3 py-1.5 rounded-[5px] flex items-center gap-1.5 transition-colors self-start sm:self-auto"
-        >
-          <i className="ri-refresh-line" /> Reset Simulation
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={handleOptimizeRoute}
+            className="bg-[#604ae3] hover:bg-[#503bc7] text-white text-[12.5px] font-bold px-3 py-1.5 rounded-[5px] flex items-center gap-1.5 transition-colors border-0 cursor-pointer"
+          >
+            <i className="ri-map-pin-line" /> Optimize Route Order
+          </button>
+          <button
+            type="button"
+            onClick={handleResetSimulation}
+            className="bg-muted/65 hover:bg-muted text-foreground border border-border text-[12.5px] font-bold px-3 py-1.5 rounded-[5px] flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <i className="ri-refresh-line" /> Reset Simulation
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -163,50 +221,63 @@ export default function ShowingTours() {
             </div>
 
             {/* Tour Stop Progression */}
-            <div className="space-y-3">
+            <div className="space-y-4 text-left">
               <h5 className="text-[13px] font-bold text-muted-foreground uppercase tracking-wider">Tour Schedule & Progress</h5>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-3">
                 {tourProps.map((p, idx) => (
-                  <div
-                    key={p.id}
-                    className={`border rounded-[6px] p-3 flex flex-col justify-between space-y-3.5 transition-all ${
-                      p.status === "Current" ? "bg-primary/5 border-[#604ae3] ring-1 ring-[#604ae3]" :
-                      p.status === "Completed" ? "bg-muted/15 border-border opacity-70" :
-                      "bg-card border-border opacity-50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                        p.status === "Completed" ? "bg-success text-white" :
-                        p.status === "Current" ? "bg-primary text-white animate-pulse" :
-                        "bg-muted text-muted-foreground"
-                      }`}>
-                        {idx + 1}
-                      </span>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                        Stop {idx + 1}
-                      </span>
-                    </div>
+                  <div key={p.id} className="space-y-3">
+                    <div
+                      className={`border rounded-[8px] p-4 flex items-center justify-between gap-4 transition-all ${
+                        p.status === "Current" ? "bg-primary/5 border-[#604ae3] ring-1 ring-[#604ae3]" :
+                        p.status === "Completed" ? "bg-muted/15 border-border opacity-75" :
+                        "bg-card border-border opacity-60"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`h-6 w-6 rounded-full flex items-center justify-center text-[12px] font-bold ${
+                          p.status === "Completed" ? "bg-success text-white" :
+                          p.status === "Current" ? "bg-primary text-white animate-pulse" :
+                          "bg-muted text-muted-foreground"
+                        }`}>
+                          {idx + 1}
+                        </span>
+                        <img src={p.image} className="h-12 w-16 rounded object-cover border border-border shrink-0" />
+                        <div>
+                          <p className="text-[13.5px] font-bold text-foreground leading-tight">{p.title}</p>
+                          <p className="text-[11.5px] text-[#0acf97] font-semibold mt-1">
+                            {p.price.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
+                          </p>
+                          <span className="text-[10.5px] text-muted-foreground block mt-0.5">{p.address}</span>
+                        </div>
+                      </div>
 
-                    <div className="flex items-center gap-2.5">
-                      <img src={p.image} className="h-10 w-12 rounded object-cover border border-border shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-bold text-foreground truncate leading-tight">{p.title}</p>
-                        <p className="text-[11px] text-[#0acf97] font-semibold mt-0.5">
-                          {p.price.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
-                        </p>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                          p.status === "Completed" ? "bg-soft-success text-success" :
+                          p.status === "Current" ? "bg-primary/20 text-primary animate-pulse" :
+                          "bg-muted text-muted-foreground"
+                        }`}>
+                          {p.status === "Completed" ? "Visited" :
+                           p.status === "Current" ? "Client On Site" :
+                           "Waiting"}
+                        </span>
+                        {p.lat && (
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {p.lat.toFixed(4)}, {p.lng.toFixed(4)}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    <span className={`text-center py-0.5 rounded text-[11px] font-bold ${
-                      p.status === "Completed" ? "bg-soft-success text-success" :
-                      p.status === "Current" ? "bg-primary/20 text-primary" :
-                      "bg-muted text-muted-foreground"
-                    }`}>
-                      {p.status === "Completed" ? "Visited" :
-                       p.status === "Current" ? "Client On Site" :
-                       "Waiting"}
-                    </span>
+                    {/* Timeline driving connector card */}
+                    {idx < tourProps.length - 1 && (
+                      <div className="flex items-center pl-12 gap-2 text-[11px] text-muted-foreground font-bold">
+                        <span className="h-4 w-[1px] bg-border border-dashed border-l-2 ml-3" />
+                        <div className="bg-[#604ae3]/10 text-[#604ae3] border border-[#604ae3]/20 rounded-full px-2.5 py-0.5 text-[10px] font-bold flex items-center gap-1.5">
+                          <i className="ri-car-line" /> Drive: {idx === 0 ? "14 mins" : "8 mins"} ({(idx === 0 ? 5.2 : 3.1).toFixed(1)} miles)
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
