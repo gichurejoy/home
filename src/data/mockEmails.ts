@@ -1,4 +1,4 @@
-export interface EmailAttachment {
+﻿export interface EmailAttachment {
   name: string;
   size: string;
   type: string;
@@ -72,7 +72,7 @@ export const mockEmails: Email[] = [
     senderAvatar: "/assets/images/users/avatar-4.jpg",
     subject: "Inquiry on Commercial Property Listings",
     preview: "Dear Gaston, we have a corporate client interested in purchasing industrial or commercial...",
-    body: "Dear Gaston,\n\nWe have a corporate client currently searching for industrial warehouse spaces or office buildings in the central business district. They have an active budget of up to $5M.\n\nCould you please send over any matching properties from the Lahomes inventory?\n\nSincerely,\nDirk Kuhn\nBroker",
+    body: "Dear Gaston,\n\nWe have a corporate client currently searching for industrial warehouse spaces or office buildings in the central business district. They have an active budget of up to $5M.\n\nCould you please send over any matching properties from the waveron inventory?\n\nSincerely,\nDirk Kuhn\nBroker",
     date: "May 31, 2026",
     time: "11:15 AM",
     isRead: true,

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useRef } from "react";
 import { SalesFunnelChart } from "@/components/charts/SalesFunnelChart";
@@ -1006,7 +1006,7 @@ export default function AgentDashboard() {
               <div className="flex items-center justify-between bg-white/20 p-3 mt-2.5 rounded-[5px] text-left">
                 <div>
                   <a href="#!" className="text-white font-bold text-[14.5px] hover:underline block leading-tight">
-                    Lahomes Group , Pvt Ltd
+                    waveron Group , Pvt Ltd
                   </a>
                   <p className="text-[11.5px] text-white/70 font-semibold mt-0.5">Markova , USA</p>
                   <div className="flex items-center gap-2 mt-1.5">

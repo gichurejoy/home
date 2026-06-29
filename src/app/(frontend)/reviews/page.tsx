@@ -17,7 +17,8 @@ import {
 import { Review } from "@/data/mockTier2";
 
 export default function ReviewsPage() {
-  const { reviews, updateReviewStatus, respondToReview } = useAppStore();
+  const { reviews, updateReviewStatus, respondToReview, rolePermissions, sessionRole } = useAppStore();
+  const canModerate = rolePermissions[sessionRole]?.includes("review_moderation") ?? false;
   const [selectedStatus, setSelectedStatus] = useState<string>("All");
   const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
@@ -43,11 +44,19 @@ export default function ReviewsPage() {
   }, [reviews, selectedStatus]);
 
   const handleStatusChange = (id: string, status: Review['status']) => {
+    if (!canModerate) {
+      toast.error(`Permission Denied: Your current role (${sessionRole}) cannot moderate reviews.`);
+      return;
+    }
     updateReviewStatus(id, status);
     toast.success(`Review ${status.toLowerCase()} successfully.`);
   };
 
   const handleSendResponse = (id: string) => {
+    if (!canModerate) {
+      toast.error(`Permission Denied: Your current role (${sessionRole}) cannot respond to reviews.`);
+      return;
+    }
     const reply = replyTexts[id];
     if (!reply || !reply.trim()) {
       toast.error("Reply text cannot be empty.");

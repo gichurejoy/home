@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Transaction } from '@/data/mockTransactions';
 import { Printer, X, FileText, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 
@@ -71,7 +71,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ tx, onClose }) => {
           {/* Top Row: Logo & Invoice details */}
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-2xl font-extrabold text-primary tracking-tight">LAHOMES</h1>
+              <h1 className="text-2xl font-extrabold text-primary tracking-tight">waveron</h1>
               <p className="text-[12px] text-muted-foreground mt-1">
                 Premium Real Estate CRM & Brokerage
               </p>
@@ -111,7 +111,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ tx, onClose }) => {
               </h3>
               <p className="font-bold text-foreground">{tx.agentName}</p>
               <p className="text-muted-foreground mt-1">Licensed Real Estate Agent</p>
-              <p className="text-muted-foreground mt-0.5">Lahomes Agent Network</p>
+              <p className="text-muted-foreground mt-0.5">waveron Agent Network</p>
             </div>
           </div>
 
@@ -170,7 +170,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ tx, onClose }) => {
           </div>
 
           <div className="text-center text-[11px] text-muted-foreground pt-4 border-t border-border border-dashed">
-            Thank you for choosing Lahomes. If you have any questions, please contact support@lahomes.com
+            Thank you for choosing waveron. If you have any questions, please contact support@waveron.com
           </div>
         </div>
 

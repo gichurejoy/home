@@ -3,9 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { useAppStore } from "@/store/useAppStore";
+import { toast } from "@/store/useToastStore";
 
 export default function AddCustomer() {
   const router = useRouter();
+  const { addCustomer } = useAppStore();
 
   // Form states with default preview values (matching Daavid Nummi as placeholder)
   const [formData, setFormData] = useState({
@@ -75,7 +79,29 @@ export default function AddCustomer() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Customer saved successfully (simulation)!");
+    addCustomer({
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      location: `${formData.address}, ${formData.city}, ${formData.country}`,
+      status: formData.status as 'Available' | 'Unavailable',
+      listStatus: formData.listStatus as 'Interested' | 'Under Review' | 'Follow-up',
+      propertyType: formData.propertyType,
+      avatar: avatarPreview,
+      socials: {
+        facebook: formData.facebook,
+        instagram: formData.instagram,
+        twitter: formData.twitter,
+        whatsapp: formData.whatsapp,
+        email: formData.email,
+      },
+      preferences: {
+        bedsBaths: "3-4 bedrooms, 2-3 bathrooms",
+        others: "Close to public transportation, good school district, backyard",
+      },
+      activePropertiesCount: 0,
+    });
+    toast.success("Customer profile registered successfully!");
     router.push("/customers/grid");
   };
 
@@ -123,11 +149,12 @@ export default function AddCustomer() {
               </div>
 
               {/* Overlapping Avatar */}
-              <div className="absolute left-6 top-10">
-                <img
+              <div className="absolute left-6 top-10 w-[72px] h-[72px]">
+                <Image
                   src={avatarPreview}
                   alt={formData.name || "Preview Avatar"}
-                  className="w-[72px] h-[72px] border-[3px] border-card rounded-full object-cover shadow-sm bg-card"
+                  fill
+                  className="border-[3px] border-card rounded-full object-cover shadow-sm bg-card"
                 />
               </div>
 

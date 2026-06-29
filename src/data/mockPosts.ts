@@ -1,4 +1,4 @@
-export interface BlogComment {
+﻿export interface BlogComment {
   id: string;
   authorName: string;
   authorAvatar: string;
@@ -33,7 +33,7 @@ export const mockPosts: BlogPost[] = [
     readTime: "5 min read",
     authorName: "Gaston Lapierre",
     authorAvatar: "/assets/images/users/avatar-1.jpg",
-    authorDesc: "Gaston is a senior real estate advisor and creative director at Lahomes, with 12+ years of experience in luxury property showcasing.",
+    authorDesc: "Gaston is a senior real estate advisor and creative director at waveron, with 12+ years of experience in luxury property showcasing.",
     views: 1542,
     excerpt: "Staging a home is a strategic marketing tool that highlights your property's best features, makes rooms appear larger, and creates a welcoming atmosphere that helps buyers envision themselves living there.",
     content: `Staging a home is a strategic marketing tool that highlights your property's best features, makes rooms appear larger, and creates a welcoming atmosphere that helps buyers envision themselves living there. When executed correctly, home staging can not only speed up the sale process but also potentially increase the final offer value.
@@ -48,7 +48,7 @@ Here are the key aspects of staging a home for sale:
 
 4. **Define Room Purposes**: Make sure each room has a single, clear purpose. If you have an empty room, stage it as a neat guest room or a functional home office. This helps buyers understand how to utilize the square footage.
 
-Our blog delivers valuable content designed to help you excel in your role. Explore our articles, interviews, and expert commentary to gain valuable insights, expand your knowledge, and stay ahead of the curve. Whether you're seeking practical tips, strategic advice, or inspiration for your career, Lahomes is here to support your journey to success.`,
+Our blog delivers valuable content designed to help you excel in your role. Explore our articles, interviews, and expert commentary to gain valuable insights, expand your knowledge, and stay ahead of the curve. Whether you're seeking practical tips, strategic advice, or inspiration for your career, waveron is here to support your journey to success.`,
     tags: ["Real Estate", "Home Design", "Staging", "Tips"],
     comments: [
       {
@@ -104,7 +104,7 @@ Analyze your daily routines, long-term family plans, and budget allocations to d
     readTime: "4 min read",
     authorName: "David Wilson",
     authorAvatar: "/assets/images/users/avatar-4.jpg",
-    authorDesc: "David is a licensed contractor and home renovation expert at Lahomes.",
+    authorDesc: "David is a licensed contractor and home renovation expert at waveron.",
     views: 2110,
     excerpt: "You don't need a massive budget to raise your property value. Discover simple, budget-friendly renovations that yield high returns on investment.",
     content: `You don't need a massive budget to raise your property value. Discover simple, budget-friendly renovations that yield high returns on investment.

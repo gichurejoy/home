@@ -9,18 +9,29 @@ import { CommandPalette } from "@/components/ui/CommandPalette";
 import { CompareBar } from "@/components/ui/CompareBar";
 import { useAppStore } from "@/store/useAppStore";
 import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { sidebarSize } = useAppStore();
+  const pathname = usePathname();
+  const router = useRouter();
+  const { sidebarSize, hasCompletedOnboarding } = useAppStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setTimeout(() => setMounted(true), 0);
+    setTimeout(() => {
+      setMounted(true);
+    }, 0);
   }, []);
+
+  useEffect(() => {
+    if (mounted && !hasCompletedOnboarding && pathname !== "/onboarding") {
+      router.push("/onboarding");
+    }
+  }, [mounted, hasCompletedOnboarding, pathname, router]);
 
   const sizeClass = !mounted ? "" : (
     sidebarSize === "condensed"
@@ -33,6 +44,16 @@ export default function DashboardLayout({
       ? "sidebar-sm-hover-active"
       : ""
   );
+
+  if (pathname === "/onboarding") {
+    return (
+      <div className="h-screen w-screen bg-[#f4f6fb] dark:bg-[#101726] overflow-y-auto p-4 sm:p-6 flex items-center justify-center">
+        {children}
+        <ToastContainer />
+        <CustomDialogs />
+      </div>
+    );
+  }
 
   return (
     <div className={`flex h-screen overflow-hidden bg-background ${sizeClass}`}>

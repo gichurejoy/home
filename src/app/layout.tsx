@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Public_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -9,8 +9,8 @@ const publicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Lahomes - Real Estate Admin",
-  description: "High-fidelity replica of Lahomes Admin Dashboard",
+  title: "waveron - Real Estate Admin",
+  description: "High-fidelity replica of waveron Admin Dashboard",
 };
 
 export default function RootLayout({

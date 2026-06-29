@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useAppStore } from "@/store/useAppStore";
 import { useTheme } from "next-themes";
@@ -18,7 +18,8 @@ export function ThemeSettings() {
     setAgencyName,
     brandColor,
     setBrandColor,
-    resetSettings
+    resetSettings,
+    resetOnboarding
   } = useAppStore();
 
   const { theme, setTheme } = useTheme();
@@ -45,6 +46,12 @@ export function ThemeSettings() {
   const handleReset = () => {
     resetSettings();
     setTheme("light");
+  };
+
+  const handleResetOnboarding = () => {
+    resetOnboarding();
+    setSettingsOpen(false);
+    window.location.href = "/onboarding";
   };
 
   if (!settingsOpen) return null;
@@ -193,7 +200,7 @@ export function ThemeSettings() {
                 type="text"
                 value={agencyName}
                 onChange={(e) => setAgencyName(e.target.value)}
-                placeholder="Lahomes"
+                placeholder="waveron"
                 className="w-full text-[13px] border border-border bg-card text-foreground rounded-[5px] px-3 py-1.5 outline-none focus:border-primary transition-colors font-medium"
               />
             </div>
@@ -242,12 +249,19 @@ export function ThemeSettings() {
         </div>
 
         {/* Drawer Footer Actions */}
-        <div className="p-4 border-t border-border bg-muted/20">
+        <div className="p-4 border-t border-border bg-muted/20 space-y-2">
+          <button
+            onClick={handleResetOnboarding}
+            className="w-full bg-[#604ae3] hover:bg-[#503bc7] text-white text-[13px] font-bold py-2 rounded-[5px] transition-colors shadow-xs flex items-center justify-center gap-1.5"
+            title="Reset onboarding and run setup wizard"
+          >
+            <i className="ri-magic-line text-[14px]" /> Run Setup Wizard
+          </button>
           <button
             onClick={handleReset}
-            className="w-full bg-[#ff5b5b] hover:bg-[#eb4a4a] text-white text-[13.5px] font-bold py-2 rounded-[5px] transition-colors shadow-xs"
+            className="w-full bg-secondary hover:bg-secondary-foreground/10 text-foreground border border-border text-[13px] font-bold py-2 rounded-[5px] transition-colors shadow-xs"
           >
-            Reset
+            Reset Theme
           </button>
         </div>
 

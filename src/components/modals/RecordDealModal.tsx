@@ -16,18 +16,39 @@ export function RecordDealModal({
   defaultPropertyId,
   defaultAgentId
 }: RecordDealModalProps) {
-  const { properties, agents, customers, addClosedDeal } = useAppStore();
+  const {
+    properties,
+    agents,
+    customers,
+    closedDeals,
+    commissionPlans,
+    agentPlanAssignments,
+    addClosedDeal
+  } = useAppStore();
 
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
   const [salePrice, setSalePrice] = useState(0);
   const [selectedAgentId, setSelectedAgentId] = useState('');
   const [selectedBuyerName, setSelectedBuyerName] = useState('');
   const [commissionRate, setCommissionRate] = useState(3.0);
-  const [splitRate, setSplitRate] = useState(80); // Default 80% to Agent, 20% to Broker
+  const [splitRate, setSplitRate] = useState(80); // Slider state (Agent percentage)
   const [isDoubleEnded, setIsDoubleEnded] = useState(false);
   const [closeDate, setCloseDate] = useState('');
   const [dealStatus, setDealStatus] = useState<'Paid' | 'Processing' | 'Pending'>('Paid');
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Find active agent plan
+  const agentPlanId = selectedAgentId ? agentPlanAssignments[selectedAgentId] : undefined;
+  const activePlan = commissionPlans?.find(p => p.id === agentPlanId) || commissionPlans?.[0];
+
+  // Calculate current cap progress for selected agent
+  const totalBrokerPaid = selectedAgentId
+    ? closedDeals.filter(d => d.agentId === selectedAgentId).reduce((sum, d) => sum + d.brokerCut, 0)
+    : 0;
+
+  const capLimit = activePlan?.capLimit ?? 0;
+  const isCapped = capLimit > 0 && totalBrokerPaid >= capLimit;
+  const remainingCap = capLimit > 0 ? Math.max(0, capLimit - totalBrokerPaid) : 0;
 
   // Sync defaults when modal opens or defaults change
   useEffect(() => {
@@ -50,34 +71,59 @@ export function RecordDealModal({
         // Pre-fill price from selected property
         const matchedProp = properties.find(p => p.id === propId);
         if (matchedProp) {
-          // If it's a rental, price might be lower, but we support standard sales
-          setSalePrice(matchedProp.price * 10); // scale up rent mock price for realistic deal volume, or use list price
+          setSalePrice(matchedProp.price * 10); // scale rent for realistic deal volume
+        }
+        
+        // Sync split rate based on selected agent's active plan and cap status
+        if (agentId) {
+          const agentPlanId = agentPlanAssignments[agentId];
+          const plan = commissionPlans?.find(p => p.id === agentPlanId) || commissionPlans?.[0];
+          if (plan) {
+            const totalBrokerPaid = closedDeals.filter(d => d.agentId === agentId).reduce((sum, d) => sum + d.brokerCut, 0);
+            const capLimit = plan.capLimit ?? 0;
+            const capped = capLimit > 0 && totalBrokerPaid >= capLimit;
+            setSplitRate(capped ? 100 : plan.agentPercentage);
+          }
         }
         
         setErrorMessage('');
         setIsDoubleEnded(false);
         setCommissionRate(3.0);
-        setSplitRate(80);
       }, 0);
     }
-  }, [isOpen, defaultPropertyId, defaultAgentId, properties, agents, customers]);
+  }, [isOpen, defaultPropertyId, defaultAgentId, properties, agents, customers, commissionPlans, agentPlanAssignments, closedDeals]);
 
   // Adjust sale price when property selection changes
   const handlePropertyChange = (propertyId: string) => {
     setSelectedPropertyId(propertyId);
     const matchedProp = properties.find(p => p.id === propertyId);
     if (matchedProp) {
-      setSalePrice(matchedProp.price * 10); // Scale up mock price if it's small (e.g. rent) to look realistic
+      setSalePrice(matchedProp.price * 10);
     }
   };
-
-  // Adjust values based on Double-Ended transaction type has been moved directly to the checkbox handler to avoid side-effects.
 
   if (!isOpen) return null;
 
   const grossCommission = Math.round((salePrice * commissionRate) / 100);
-  const agentPayout = Math.round((grossCommission * splitRate) / 100);
-  const brokerCut = grossCommission - agentPayout;
+  
+  // Calculate payouts under cap limits: broker cut is capped at remainingCap
+  let brokerCut = 0;
+  let agentPayout = 0;
+
+  if (activePlan) {
+    const brokerPercentage = (100 - splitRate);
+    const standardBrokerCut = Math.round((grossCommission * brokerPercentage) / 100);
+    
+    if (capLimit > 0) {
+      brokerCut = Math.min(remainingCap, standardBrokerCut);
+    } else {
+      brokerCut = standardBrokerCut;
+    }
+    agentPayout = grossCommission - brokerCut;
+  } else {
+    agentPayout = Math.round((grossCommission * splitRate) / 100);
+    brokerCut = grossCommission - agentPayout;
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,6 +152,17 @@ export function RecordDealModal({
       return;
     }
 
+    // Determine split ratio label
+    let splitRatioLabel = "";
+    if (isDoubleEnded) {
+      splitRatioLabel = "Double-Ended Deal";
+    } else if (isCapped) {
+      splitRatioLabel = "100% Cap-Met";
+    } else {
+      const actualAgentPct = grossCommission > 0 ? Math.round((agentPayout / grossCommission) * 100) : splitRate;
+      splitRatioLabel = `${actualAgentPct}/${100 - actualAgentPct} Split`;
+    }
+
     // Submit the transaction to the store
     addClosedDeal({
       propertyId: selectedPropertyId,
@@ -116,7 +173,7 @@ export function RecordDealModal({
       buyerName: selectedBuyerName,
       commissionRate,
       grossCommission,
-      splitRatio: isDoubleEnded ? "100% Cap-Met" : `${splitRate}/${100 - splitRate} Split`,
+      splitRatio: splitRatioLabel,
       agentPayout,
       brokerCut,
       doubleEnded: isDoubleEnded,
@@ -227,7 +284,18 @@ export function RecordDealModal({
               </label>
               <select
                 value={selectedAgentId}
-                onChange={(e) => setSelectedAgentId(e.target.value)}
+                onChange={(e) => {
+                  const agentId = e.target.value;
+                  setSelectedAgentId(agentId);
+                  const agentPlanId = agentPlanAssignments[agentId];
+                  const plan = commissionPlans?.find(p => p.id === agentPlanId) || commissionPlans?.[0];
+                  if (plan) {
+                    const totalBrokerPaid = closedDeals.filter(d => d.agentId === agentId).reduce((sum, d) => sum + d.brokerCut, 0);
+                    const capLimit = plan.capLimit ?? 0;
+                    const capped = capLimit > 0 && totalBrokerPaid >= capLimit;
+                    setSplitRate(capped ? 100 : plan.agentPercentage);
+                  }
+                }}
                 className="w-full text-[13px] border border-border bg-card text-foreground rounded-[5px] px-3 py-2 outline-none focus:border-primary transition-colors font-medium cursor-pointer"
               >
                 {agents.map(a => (
@@ -256,6 +324,48 @@ export function RecordDealModal({
               </select>
             </div>
           </div>
+
+          {/* Dynamic Cap split progress bar info */}
+          {activePlan && (
+            <div className="text-[12px] bg-primary/5 border border-primary/10 rounded-[6px] p-3 space-y-2 mt-1">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-foreground flex items-center gap-1">
+                  <i className="ri-shield-user-line text-primary text-[14px]" /> 
+                  Active Split Plan: <span className="text-primary font-extrabold">{activePlan.name}</span>
+                </span>
+                <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${
+                  isCapped 
+                    ? "bg-success/10 text-success border-success/20" 
+                    : "bg-primary/10 text-primary border-primary/20"
+                }`}>
+                  {isCapped ? "Cap Reached (100% Split)" : `${activePlan.agentPercentage}/${activePlan.brokerPercentage} Split`}
+                </span>
+              </div>
+              {capLimit > 0 && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>Broker Cap Progression:</span>
+                    <span className="font-bold text-foreground">${totalBrokerPaid.toLocaleString()} / ${capLimit.toLocaleString()}</span>
+                  </div>
+                  <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-primary h-full transition-all duration-300"
+                      style={{ width: `${Math.min(100, (totalBrokerPaid / capLimit) * 100)}%` }}
+                    />
+                  </div>
+                  {isCapped ? (
+                    <p className="text-[10.5px] text-success font-semibold">
+                      ✨ Cap exceeded. Agent receives 100% payout for the remainder of this cycle.
+                    </p>
+                  ) : remainingCap > 0 && remainingCap < 2000 && (
+                    <p className="text-[10.5px] text-warning font-semibold">
+                      ⚠️ Agent is close to capping. Only ${remainingCap.toLocaleString()} remaining in broker cut.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             {/* Commission Rate */}
@@ -292,7 +402,7 @@ export function RecordDealModal({
           {/* Splits slider */}
           <div className="space-y-2 pt-2 border-t border-dashed border-border">
             <div className="flex justify-between items-center text-[11px] font-bold text-muted-foreground uppercase">
-              <span>Commission Split Tier</span>
+              <span>Commission Split Override</span>
               <span className="text-primary font-bold">{splitRate}% Agent / {100 - splitRate}% Broker</span>
             </div>
             

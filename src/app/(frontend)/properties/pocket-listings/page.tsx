@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -152,7 +152,7 @@ export default function PocketListings() {
 
     if (channel === "whatsapp") {
       setPitchMessage(
-        `Hi ${buyer.name}! It's Dominic from Lahomes. I have a private, off-market pocket listing at ${listingTitle} that matches your search criteria. Price is ${priceFormatted} (${activeListing.specs.beds} Beds, ${activeListing.specs.baths} Baths). Would you like to schedule an early tour before we list it on the public MLS? Let me know!`
+        `Hi ${buyer.name}! It's Dominic from waveron. I have a private, off-market pocket listing at ${listingTitle} that matches your search criteria. Price is ${priceFormatted} (${activeListing.specs.beds} Beds, ${activeListing.specs.baths} Baths). Would you like to schedule an early tour before we list it on the public MLS? Let me know!`
       );
     } else {
       setPitchMessage(

@@ -39,7 +39,7 @@ export interface DocumentFile {
   name: string;
   size: string;
   uploadedAt: string;
-  category: 'Contract' | 'Disclosure' | 'Image' | 'Other';
+  category: 'Contract' | 'Disclosure' | 'Image' | 'Blueprint' | 'Other';
   url: string;
 }
 
@@ -94,7 +94,7 @@ export const initialReviews: Review[] = [
     customerName: "Sinikka Penttinen",
     customerAvatar: "/assets/images/users/avatar-3.jpg",
     rating: 5,
-    comment: "Absolutely stunning property. The process of viewing and finalizing the deal was incredibly smooth thanks to Lahomes platform.",
+    comment: "Absolutely stunning property. The process of viewing and finalizing the deal was incredibly smooth thanks to waveron platform.",
     status: "Approved",
     createdAt: "2026-05-14"
   },

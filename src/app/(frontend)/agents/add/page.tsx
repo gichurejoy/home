@@ -1,11 +1,14 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAppStore } from "@/store/useAppStore";
+import { toast } from "@/store/useToastStore";
 
 export default function AddAgent() {
   const router = useRouter();
+  const addAgent = useAppStore((state) => state.addAgent);
 
   // Form State
   const [form, setForm] = useState({
@@ -32,7 +35,26 @@ export default function AddAgent() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Agent added successfully!");
+    addAgent({
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      properties: form.properties,
+      address: form.address,
+      avatar: "/assets/images/users/avatar-2.jpg",
+      experience: "3 Years",
+      agency: "waveron Realty",
+      license: `LIC-${Math.floor(1000 + Math.random() * 9000)}-02`,
+      textNumber: form.phone,
+      servicesArea: `${form.city || 'Washington'}, ${form.country || 'U.S.A'}`,
+      status: "Active",
+      facebook: form.facebook,
+      instagram: form.instagram,
+      twitter: form.twitter,
+      joinDate: new Date().toISOString().split('T')[0],
+      bio: "Registered agent profile."
+    });
+    toast.success("Agent registered successfully!");
     router.push("/agents/list");
   };
 
@@ -42,7 +64,7 @@ export default function AddAgent() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <h1 className="text-[20px] font-bold text-foreground">Add Agent</h1>
-          <p className="text-[13px] text-muted-foreground mt-0.5">Register a new agent in LaHomes</p>
+          <p className="text-[13px] text-muted-foreground mt-0.5">Register a new agent in waveron</p>
         </div>
         <ol className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
           <li>

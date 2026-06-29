@@ -3,9 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { useAppStore } from "@/store/useAppStore";
+import { toast } from "@/store/useToastStore";
 
 export default function AddProperty() {
   const router = useRouter();
+  const { addProperty } = useAppStore();
 
   // Form State
   const [form, setForm] = useState({
@@ -28,6 +32,35 @@ export default function AddProperty() {
   const [generatedEmail, setGeneratedEmail] = useState("");
   const [copilotFinished, setCopilotFinished] = useState(false);
 
+  // Image Upload states
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageProgress, setImageProgress] = useState(0);
+  const [uploadedImageName, setUploadedImageName] = useState("");
+  const [uploadedImageUrl, setUploadedImageUrl] = useState("");
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      setIsUploadingImage(true);
+      setImageProgress(0);
+      setUploadedImageName(file.name);
+      
+      const interval = setInterval(() => {
+        setImageProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setIsUploadingImage(false);
+            setUploadedImageUrl(URL.createObjectURL(file));
+            toast.success("Property photo uploaded successfully!");
+            return 100;
+          }
+          return prev + 20;
+        });
+      }, 150);
+    }
+  };
+
   const handleRunCopilot = () => {
     setIsGenerating(true);
     setCopilotProgress(0);
@@ -48,7 +81,7 @@ export default function AddProperty() {
 
           // Set generated marketing content
           setGeneratedSocial(
-            `🏡 NEW LISTING ALERT! ✨ Check out this stunning new ${form.category.toLowerCase()} listed for ${form.status === "For Rent" ? "Rent" : "Sale"} in ${form.location.split(',')[0]}! \n\nFeaturing:\n🛏️ ${form.bedrooms} Bedrooms\n🛁 ${form.bathrooms} Bathrooms\n📐 ${form.area} Sqft\n🏢 ${form.floors} Floors\n\nOffered at $${form.price.toLocaleString("en-US")}! Click the link in bio for private showing slots. DM for details! #RealEstate #LuxuryLiving #LaHomes`
+            `🏡 NEW LISTING ALERT! ✨ Check out this stunning new ${form.category.toLowerCase()} listed for ${form.status === "For Rent" ? "Rent" : "Sale"} in ${form.location.split(',')[0]}! \n\nFeaturing:\n🛏️ ${form.bedrooms} Bedrooms\n🛁 ${form.bathrooms} Bathrooms\n📐 ${form.area} Sqft\n🏢 ${form.floors} Floors\n\nOffered at $${form.price.toLocaleString("en-US")}! Click the link in bio for private showing slots. DM for details! #RealEstate #LuxuryLiving #waveron`
           );
 
           setGeneratedEmail(
@@ -88,7 +121,30 @@ export default function AddProperty() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Property added successfully!");
+    addProperty({
+      title: form.name,
+      location: form.location,
+      price: form.price,
+      type: form.category,
+      status: form.status as "For Sale" | "For Rent" | "Sold",
+      bedrooms: form.bedrooms,
+      bathrooms: form.bathrooms,
+      area: form.area,
+      floors: form.floors,
+      facilities: ["Big Swimming pool", "Near Airport", "Big Size Garden", "4 Car Parking", "24/7 Electricity", "Personal Theater"],
+      rating: 4.5,
+      description: form.description,
+      owner: {
+        name: "Gaston Lapierre",
+        avatar: "/assets/images/users/avatar-1.jpg",
+        phone: "+1 (555) 123-4567",
+        email: "gaston@waveron.com",
+      },
+      image: uploadedImageUrl || "/assets/images/properties/p-1.jpg",
+      dateAdded: new Date().toISOString().split("T")[0],
+      agentId: "AGT-001",
+    });
+    toast.success("Property added successfully!");
     router.push("/properties/list");
   };
 
@@ -98,7 +154,7 @@ export default function AddProperty() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <h1 className="text-[20px] font-bold text-foreground">Add Property</h1>
-          <p className="text-[13px] text-muted-foreground mt-0.5">List a new property on LaHomes</p>
+          <p className="text-[13px] text-muted-foreground mt-0.5">List a new property on waveron</p>
         </div>
         <ol className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
           <li>
@@ -121,7 +177,7 @@ export default function AddProperty() {
               {/* Image Preview */}
               <div className="relative aspect-[4/3] bg-muted/20 overflow-hidden">
                 <img
-                  src="/assets/images/properties/p-1.jpg"
+                  src={uploadedImageUrl || "/assets/images/properties/p-1.jpg"}
                   alt="Property Preview"
                   className="w-full h-full object-cover"
                 />
@@ -201,13 +257,43 @@ export default function AddProperty() {
               <h4 className="text-[15px] font-bold text-foreground">Add Property Photo</h4>
             </div>
             <div className="p-5">
-              <div className="border-2 border-dashed border-border rounded-[8px] bg-muted/5 py-8 text-center flex flex-col items-center justify-center cursor-pointer hover:bg-muted/15 transition-all">
-                <i className="ri-upload-cloud-2-line text-[48px] text-[#604ae3]" />
-                <h3 className="text-[16px] font-bold text-foreground mt-3">Drop your images here, or <span className="text-[#604ae3]">click to browse</span></h3>
-                <span className="text-[12.5px] text-muted-foreground mt-1 block">
-                  1600 x 1200 (4:3) recommended. PNG, JPG and GIF files are allowed
-                </span>
-              </div>
+              <label htmlFor="property-photo-upload" className="border-2 border-dashed border-border rounded-[8px] bg-muted/5 py-8 text-center flex flex-col items-center justify-center cursor-pointer hover:bg-muted/15 transition-all block relative select-none">
+                <input
+                  type="file"
+                  id="property-photo-upload"
+                  onChange={handleImageChange}
+                  accept="image/*"
+                  disabled={isUploadingImage}
+                  className="hidden"
+                />
+                {isUploadingImage ? (
+                  <div className="w-full max-w-xs space-y-3">
+                    <div className="h-8 w-8 border-[3px] border-t-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin mx-auto" />
+                    <div className="text-center">
+                      <p className="text-[13px] font-bold text-foreground truncate max-w-[200px] mx-auto">Uploading {uploadedImageName}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{imageProgress}% complete</p>
+                    </div>
+                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-[#604ae3] transition-all duration-150" style={{ width: `${imageProgress}%` }} />
+                    </div>
+                  </div>
+                ) : uploadedImageUrl ? (
+                  <div className="space-y-2">
+                    <i className="ri-checkbox-circle-line text-[48px] text-[#0acf97] mx-auto block" />
+                    <h3 className="text-[16px] font-bold text-foreground">Photo uploaded successfully!</h3>
+                    <p className="text-[12.5px] text-muted-foreground">{uploadedImageName}</p>
+                    <span className="text-[11.5px] text-[#604ae3] font-bold underline mt-2 block">Click to choose another photo</span>
+                  </div>
+                ) : (
+                  <>
+                    <i className="ri-upload-cloud-2-line text-[48px] text-[#604ae3]" />
+                    <h3 className="text-[16px] font-bold text-foreground mt-3">Drop your images here, or <span className="text-[#604ae3]">click to browse</span></h3>
+                    <span className="text-[12.5px] text-muted-foreground mt-1 block">
+                      1600 x 1200 (4:3) recommended. PNG, JPG and GIF files are allowed
+                    </span>
+                  </>
+                )}
+              </label>
             </div>
           </div>
 

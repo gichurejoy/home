@@ -10,6 +10,23 @@ import { exportToCSV } from "@/lib/exportUtils";
 import { InvoiceModal } from "@/components/modals/InvoiceModal";
 import { DollarSign } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
+
+function CustomerAvatar({ src, name }: { src: string; name: string }) {
+  const [imgSrc, setImgSrc] = useState(src);
+  return (
+    <Image
+      src={imgSrc}
+      alt={name}
+      width={36}
+      height={36}
+      className="w-9 h-9 rounded-full object-cover border border-border"
+      onError={() => {
+        setImgSrc(`https://api.dicebear.com/7.x/initials/svg?seed=${name}`);
+      }}
+    />
+  );
+}
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
@@ -22,7 +39,7 @@ export default function TransactionsPage() {
   const itemsPerPage = 6;
 
   const confirm = useToastStore((state) => state.confirm);
-  const prompt = useToastStore((state) => state.prompt);
+  const [editingTxForStatus, setEditingTxForStatus] = useState<Transaction | null>(null);
 
   // Simulate skeleton loading
   useEffect(() => {
@@ -120,7 +137,7 @@ export default function TransactionsPage() {
       { key: "propertyAddress" as const, label: "Property Address" },
       { key: "status" as const, label: "Status" },
     ];
-    const success = exportToCSV<any>(filteredTransactions, headers, "transactions");
+    const success = exportToCSV<Transaction>(filteredTransactions, headers, "transactions");
     if (success) {
       toast.success("CSV file downloaded successfully.");
     } else {
@@ -128,27 +145,19 @@ export default function TransactionsPage() {
     }
   };
 
-  const handleEditStatus = async (tx: Transaction) => {
-    const newStatus = await prompt({
-      title: "Edit Transaction Status",
-      message: "Change status (Completed/Pending/Canceled):",
-      defaultValue: tx.status,
-      placeholder: "Completed, Pending, or Canceled",
-    });
+  const handleEditStatus = (tx: Transaction) => {
+    setEditingTxForStatus(tx);
+  };
 
-    if (newStatus === null) return; // User cancelled
-
-    const validStatuses = ["Completed", "Pending", "Canceled"];
-    const normalizedStatus = validStatuses.find(
-      (s) => s.toLowerCase() === newStatus.trim().toLowerCase()
+  const submitStatusChange = (status: Transaction['status']) => {
+    if (!editingTxForStatus) return;
+    setTransactions(
+      transactions.map((t) =>
+        t.id === editingTxForStatus.id ? { ...t, status } : t
+      )
     );
-
-    if (normalizedStatus) {
-      setTransactions(transactions.map((t) => (t.id === tx.id ? { ...t, status: normalizedStatus as Transaction['status'] } : t)));
-      toast.success(`Transaction status updated to ${normalizedStatus}.`);
-    } else {
-      toast.error("Invalid status. Please enter Completed, Pending, or Canceled.");
-    }
+    setEditingTxForStatus(null);
+    toast.success(`Transaction status updated to ${status}.`);
   };
 
   const handleOptionsPlaceholder = () => {
@@ -343,13 +352,9 @@ export default function TransactionsPage() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <img
+                          <CustomerAvatar
                             src={tx.customerAvatar}
-                            alt={tx.customerName}
-                            className="w-9 h-9 rounded-full object-cover border border-border"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${tx.customerName}`;
-                            }}
+                            name={tx.customerName}
                           />
                           <span className="font-semibold text-foreground">{tx.customerName}</span>
                         </div>
@@ -482,6 +487,52 @@ export default function TransactionsPage() {
       {/* ── Transaction Invoice Modal ────────────────────────────── */}
       {activeDetailsTx && (
         <InvoiceModal tx={activeDetailsTx} onClose={() => setActiveDetailsTx(null)} />
+      )}
+
+      {/* ── Edit Transaction Status Modal ───────────────────────── */}
+      {editingTxForStatus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setEditingTxForStatus(null)} />
+          
+          {/* Modal Card */}
+          <div className="relative w-full max-w-sm bg-card border border-border rounded-lg shadow-2xl p-6 overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-[16px] font-bold text-foreground mb-4">Edit Transaction Status</h3>
+            <p className="text-[13px] text-muted-foreground mb-4">
+              Update the payment status for transaction <span className="font-bold text-foreground">{editingTxForStatus.id}</span>:
+            </p>
+            
+            <div className="flex flex-col gap-2">
+              {(["Completed", "Pending", "Canceled"] as Transaction['status'][]).map((st) => st && (
+                <button
+                  key={st}
+                  onClick={() => submitStatusChange(st)}
+                  className={`w-full py-2.5 rounded-lg text-[13.5px] font-bold border transition-all ${
+                    editingTxForStatus.status === st
+                      ? st === "Completed"
+                        ? "bg-success text-white border-success shadow-sm"
+                        : st === "Pending"
+                        ? "bg-warning text-white border-warning shadow-sm"
+                        : "bg-danger text-white border-danger shadow-sm"
+                      : "bg-card text-foreground border-border hover:bg-muted"
+                  }`}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
+            
+            <div className="mt-5 pt-3 border-t border-border flex justify-end">
+              <button
+                type="button"
+                onClick={() => setEditingTxForStatus(null)}
+                className="text-[13px] font-bold text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-muted rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

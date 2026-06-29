@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Home, User, Users, CornerDownLeft, X } from 'lucide-react';
@@ -228,7 +228,7 @@ export const CommandPalette: React.FC = () => {
               <kbd className="border border-border bg-background px-1.5 py-0.5 rounded text-[10px]">ESC</kbd> to close
             </span>
           </div>
-          <span className="font-semibold select-none">Lahomes Search</span>
+          <span className="font-semibold select-none">waveron Search</span>
         </div>
       </motion.div>
     </div>

@@ -7,7 +7,8 @@ import { useAppStore } from "@/store/useAppStore";
 import { toast } from "@/store/useToastStore";
 
 export default function PropertyGrid() {
-  const { comparedPropertyIds, toggleComparedPropertyId } = useAppStore();
+  const { comparedPropertyIds, toggleComparedPropertyId, rolePermissions, sessionRole } = useAppStore();
+  const canEditListings = rolePermissions[sessionRole]?.includes("listings_edit") ?? false;
   // Saved properties state (for bookmark toggle)
   const [savedProperties, setSavedProperties] = useState<string[]>([]);
 
@@ -330,12 +331,22 @@ export default function PropertyGrid() {
             <p className="text-[13px] text-muted-foreground">
               Showing <span className="font-semibold text-foreground">{filteredProperties.length}</span> of <span className="font-semibold text-foreground">{properties.length}</span> results
             </p>
-            <Link
-              href="/properties/add"
-              className="bg-[#604ae3] text-white text-[13px] font-bold px-3.5 py-2 rounded-[5px] flex items-center gap-1 hover:bg-[#503bc7] transition-all"
-            >
-              <i className="ri-add-line text-[16px]" /> Add Property
-            </Link>
+            {canEditListings ? (
+              <Link
+                href="/properties/add"
+                className="bg-[#604ae3] text-white text-[13px] font-bold px-3.5 py-2 rounded-[5px] flex items-center gap-1 hover:bg-[#503bc7] transition-all"
+              >
+                <i className="ri-add-line text-[16px]" /> Add Property
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => toast.error("Permission Denied: Your current role does not have permission to add properties.")}
+                className="bg-muted text-muted-foreground text-[13px] font-bold px-3.5 py-2 rounded-[5px] flex items-center gap-1 cursor-not-allowed opacity-60 transition-all border border-border"
+              >
+                <i className="ri-add-line text-[16px]" /> Add Property
+              </button>
+            )}
           </div>
 
           {filteredProperties.length === 0 ? (

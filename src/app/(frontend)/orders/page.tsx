@@ -8,6 +8,23 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { exportToCSV } from "@/lib/exportUtils";
 import { ShoppingCart } from "lucide-react";
+import Image from "next/image";
+
+function CustomerAvatar({ src, name }: { src: string; name: string }) {
+  const [imgSrc, setImgSrc] = useState(src);
+  return (
+    <Image
+      src={imgSrc}
+      alt={name}
+      width={36}
+      height={36}
+      className="w-9 h-9 rounded-full object-cover border border-border"
+      onError={() => {
+        setImgSrc(`https://api.dicebear.com/7.x/initials/svg?seed=${name}`);
+      }}
+    />
+  );
+}
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>(mockOrders);
@@ -19,7 +36,19 @@ export default function OrdersPage() {
   const itemsPerPage = 6;
 
   const confirm = useToastStore((state) => state.confirm);
-  const prompt = useToastStore((state) => state.prompt);
+  
+  // Modals state
+  const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
+  const [editingOrderForStatus, setEditingOrderForStatus] = useState<Order | null>(null);
+  
+  const [newOrderForm, setNewOrderForm] = useState({
+    name: "",
+    phone: "",
+    propertyType: "Residential",
+    amount: 1500000,
+    address: "",
+    status: "Pending" as Order['status'],
+  });
 
   // Simulate premium skeleton loading
   useEffect(() => {
@@ -115,7 +144,7 @@ export default function OrdersPage() {
       { key: "properties" as const, label: "Properties" },
       { key: "status" as const, label: "Status" },
     ];
-    const success = exportToCSV<any>(filteredOrders, headers, "orders");
+    const success = exportToCSV<Order>(filteredOrders, headers, "orders");
     if (success) {
       toast.success("CSV file downloaded successfully.");
     } else {
@@ -132,75 +161,59 @@ export default function OrdersPage() {
     });
   };
 
-  const handleEditStatus = async (order: Order) => {
-    const newStatus = await prompt({
-      title: "Edit Order Status",
-      message: "Change status (Paid/Pending/Unpaid):",
-      defaultValue: order.status,
-      placeholder: "Paid, Pending, or Unpaid",
-    });
-
-    if (newStatus === null) return; // User cancelled
-
-    const validStatuses = ["Paid", "Pending", "Unpaid"];
-    const normalizedStatus = validStatuses.find(
-      (s) => s.toLowerCase() === newStatus.trim().toLowerCase()
-    );
-
-    if (normalizedStatus) {
-      setOrders(orders.map((o) => (o.id === order.id ? { ...o, status: normalizedStatus as Order['status'] } : o)));
-      toast.success(`Order status updated to ${normalizedStatus}.`);
-    } else {
-      toast.error("Invalid status. Please enter Paid, Pending, or Unpaid.");
-    }
+  const handleEditStatus = (order: Order) => {
+    setEditingOrderForStatus(order);
   };
 
-  const handleNewOrder = async () => {
-    const name = await prompt({
-      title: "New Order - Customer Name",
-      message: "Enter the customer name for the new order:",
-      placeholder: "e.g. John Doe",
+  const handleNewOrder = () => {
+    setNewOrderForm({
+      name: "",
+      phone: "+231 00-0000000",
+      propertyType: "Residential",
+      amount: 1500000,
+      address: "",
+      status: "Pending",
     });
-    if (!name) return;
+    setIsNewOrderOpen(true);
+  };
 
-    const propType = await prompt({
-      title: "New Order - Property Type",
-      message: "Enter the property type (Residential/Commercial/Apartment/Industrial):",
-      defaultValue: "Residential",
-      placeholder: "Residential",
-    });
-    if (!propType) return;
-
-    const amountStr = await prompt({
-      title: "New Order - Amount ($)",
-      message: "Enter the order amount in dollars:",
-      defaultValue: "1500000",
-      placeholder: "1500000",
-    });
-    if (!amountStr) return;
-    const amount = parseFloat(amountStr) || 0;
-
-    const props = await prompt({
-      title: "New Order - Address",
-      message: "Enter the property address:",
-      defaultValue: "123 Main St",
-      placeholder: "123 Main St",
-    });
-    if (!props) return;
+  const submitNewOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOrderForm.name.trim()) {
+      toast.error("Customer name is required.");
+      return;
+    }
+    if (!newOrderForm.address.trim()) {
+      toast.error("Address is required.");
+      return;
+    }
 
     const newOrder: Order = {
       id: `ORD-0${orders.length + 1}`,
-      name,
+      name: newOrderForm.name,
       avatar: `/assets/images/users/avatar-${(orders.length % 9) + 2}.jpg`,
       date: new Date().toLocaleDateString("en-GB"),
-      phone: "+231 00-0000000",
-      propertyType: propType,
-      amount,
-      properties: props,
-      status: "Pending",
+      phone: newOrderForm.phone,
+      propertyType: newOrderForm.propertyType,
+      amount: newOrderForm.amount,
+      properties: newOrderForm.address,
+      status: newOrderForm.status,
     };
+    
     setOrders([newOrder, ...orders]);
+    setIsNewOrderOpen(false);
     toast.success("New order created successfully.");
+  };
+
+  const submitStatusChange = (status: Order['status']) => {
+    if (!editingOrderForStatus) return;
+    setOrders(
+      orders.map((o) =>
+        o.id === editingOrderForStatus.id ? { ...o, status } : o
+      )
+    );
+    setEditingOrderForStatus(null);
+    toast.success(`Order status updated to ${status}.`);
   };
 
   const formatPrice = (value: number) => {
@@ -377,13 +390,9 @@ export default function OrdersPage() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <img
+                          <CustomerAvatar
                             src={order.avatar}
-                            alt={order.name}
-                            className="w-9 h-9 rounded-full object-cover border border-border"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${order.name}`;
-                            }}
+                            name={order.name}
                           />
                           <span className="font-semibold text-foreground">{order.name}</span>
                         </div>
@@ -498,6 +507,184 @@ export default function OrdersPage() {
               </nav>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── New Order Modal ────────────────────────────────────── */}
+      {isNewOrderOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-4 py-6">
+          {/* Backdrop */}
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsNewOrderOpen(false)} />
+          
+          {/* Modal Card */}
+          <div className="relative w-full max-w-md bg-card border border-border rounded-lg shadow-2xl overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-6 py-4 bg-muted/20 border-b border-border flex items-center justify-between">
+              <h3 className="text-[16px] font-bold text-foreground flex items-center gap-1.5">
+                <ShoppingCart className="h-5 w-5 text-primary" /> Create New Order
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setIsNewOrderOpen(false)} 
+                className="h-8 w-8 rounded-full bg-muted/40 hover:bg-muted text-muted-foreground flex items-center justify-center transition-all"
+              >
+                <i className="ri-close-line text-[18px]" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={submitNewOrder} className="p-6 space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  Customer Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newOrderForm.name}
+                  onChange={(e) => setNewOrderForm({ ...newOrderForm, name: e.target.value })}
+                  className="w-full text-[13px] border border-border bg-card text-foreground rounded-[5px] px-3 py-2 outline-none focus:border-primary transition-colors font-medium"
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                    Phone Contact
+                  </label>
+                  <input
+                    type="text"
+                    value={newOrderForm.phone}
+                    onChange={(e) => setNewOrderForm({ ...newOrderForm, phone: e.target.value })}
+                    className="w-full text-[13px] border border-border bg-card text-foreground rounded-[5px] px-3 py-2 outline-none focus:border-primary transition-colors font-medium"
+                    placeholder="+231 00-0000000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                    Property Type
+                  </label>
+                  <select
+                    value={newOrderForm.propertyType}
+                    onChange={(e) => setNewOrderForm({ ...newOrderForm, propertyType: e.target.value })}
+                    className="w-full text-[13px] border border-border bg-card text-foreground rounded-[5px] px-3 py-2 outline-none focus:border-primary transition-colors font-medium cursor-pointer"
+                  >
+                    <option value="Residential">Residential</option>
+                    <option value="Commercial">Commercial</option>
+                    <option value="Apartment">Apartment</option>
+                    <option value="Industrial">Industrial</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                    Amount ($) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={newOrderForm.amount}
+                    onChange={(e) => setNewOrderForm({ ...newOrderForm, amount: Number(e.target.value) })}
+                    className="w-full text-[13px] border border-border bg-card text-foreground rounded-[5px] px-3 py-2 outline-none focus:border-primary transition-colors font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                    Initial Status
+                  </label>
+                  <select
+                    value={newOrderForm.status}
+                    onChange={(e) => setNewOrderForm({ ...newOrderForm, status: e.target.value as Order['status'] })}
+                    className="w-full text-[13px] border border-border bg-card text-foreground rounded-[5px] px-3 py-2 outline-none focus:border-primary transition-colors font-medium cursor-pointer"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Unpaid">Unpaid</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  Property Address *
+                </label>
+                <textarea
+                  required
+                  rows={2}
+                  value={newOrderForm.address}
+                  onChange={(e) => setNewOrderForm({ ...newOrderForm, address: e.target.value })}
+                  className="w-full text-[13px] border border-border bg-card text-foreground rounded-[5px] px-3 py-2 outline-none focus:border-primary transition-colors font-medium resize-none"
+                  placeholder="e.g. 123 Main St"
+                />
+              </div>
+
+              {/* Action buttons */}
+              <div className="pt-4 border-t border-border flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsNewOrderOpen(false)}
+                  className="flex-1 border border-border text-muted-foreground hover:bg-muted font-bold py-2 rounded-[5px] text-[13.5px] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-[#0acf97] hover:bg-[#0acf97]/90 text-white font-bold py-2 rounded-[5px] text-[13.5px] transition-colors shadow-md"
+                >
+                  Create Order
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Order Status Modal ──────────────────────────────── */}
+      {editingOrderForStatus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setEditingOrderForStatus(null)} />
+          
+          {/* Modal Card */}
+          <div className="relative w-full max-w-sm bg-card border border-border rounded-lg shadow-2xl p-6 overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-[16px] font-bold text-foreground mb-4">Edit Order Status</h3>
+            <p className="text-[13px] text-muted-foreground mb-4">
+              Update the payment status for order <span className="font-bold text-foreground">{editingOrderForStatus.id}</span>:
+            </p>
+            
+            <div className="flex flex-col gap-2">
+              {(["Paid", "Pending", "Unpaid"] as Order['status'][]).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => submitStatusChange(st)}
+                  className={`w-full py-2.5 rounded-lg text-[13.5px] font-bold border transition-all ${
+                    editingOrderForStatus.status === st
+                      ? st === "Paid"
+                        ? "bg-success text-white border-success shadow-sm"
+                        : st === "Pending"
+                        ? "bg-warning text-white border-warning shadow-sm"
+                        : "bg-danger text-white border-danger shadow-sm"
+                      : "bg-card text-foreground border-border hover:bg-muted"
+                  }`}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
+            
+            <div className="mt-5 pt-3 border-t border-border flex justify-end">
+              <button
+                type="button"
+                onClick={() => setEditingOrderForStatus(null)}
+                className="text-[13px] font-bold text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-muted rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

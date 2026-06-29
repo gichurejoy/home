@@ -1,4 +1,4 @@
-export interface Message {
+﻿export interface Message {
   id: string;
   senderId: "me" | "contact";
   senderName: string;
@@ -245,7 +245,7 @@ export const mockGroups: ChatGroup[] = [
         id: "gmsg-1-3",
         senderId: "me",
         senderName: "Gaston Lapierre",
-        text: "Welcome to the Lahomes administrative channel.",
+        text: "Welcome to the waveron administrative channel.",
         timestamp: "09:10 AM"
       }
     ]

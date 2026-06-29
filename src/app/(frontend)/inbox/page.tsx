@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo } from "react";
 import { mockEmails, Email, EmailAttachment } from "@/data/mockEmails";
@@ -117,7 +117,7 @@ export default function InboxPage() {
     const newEmail: Email = {
       id: `email-${Date.now()}`,
       senderName: "Gaston Lapierre",
-      senderEmail: "gaston@lahomes.com",
+      senderEmail: "gaston@waveron.com",
       senderAvatar: "/assets/images/users/avatar-1.jpg",
       subject: subject,
       preview: bodyText.substring(0, 80) + "...",
@@ -409,7 +409,7 @@ export default function InboxPage() {
                     From: &lt;{activeEmail.senderEmail}&gt;
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-1.5">
-                    To: gaston@lahomes.com
+                    To: gaston@waveron.com
                   </p>
                 </div>
                 <div className="text-right shrink-0 text-[11.5px] text-muted-foreground">

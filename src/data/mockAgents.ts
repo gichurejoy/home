@@ -1,4 +1,4 @@
-export interface Agent {
+﻿export interface Agent {
   id: string;
   name: string;
   email: string;
@@ -115,7 +115,7 @@ export const agents: Agent[] = [
   {
     id: "AGT-004",
     name: "Sarah Williams",
-    email: "sarah.w@lahomes.com",
+    email: "sarah.w@waveron.com",
     phone: "+1 (555) 123-4567",
     properties: 24,
     status: "Active",
@@ -124,7 +124,7 @@ export const agents: Agent[] = [
     avatar: "/assets/images/users/avatar-5.jpg",
     address: "Lincoln Drive Harrisburg, PA 17101 U.S.A",
     experience: "3 Year",
-    agency: "LaHomes Agency",
+    agency: "waveron Agency",
     license: "LC-1904-8834-2938",
     textNumber: "TC-9284-PC-19284",
     servicesArea: "Harrisburg Metro",
@@ -136,14 +136,14 @@ export const agents: Agent[] = [
       instagram: "https://instagram.com",
       twitter: "https://twitter.com",
       whatsapp: "https://wa.me",
-      email: "mailto:sarah.w@lahomes.com",
+      email: "mailto:sarah.w@waveron.com",
     },
-    bio: "Sarah Williams is a senior advisor at LaHomes Agency. She focuses on premium residential sales, luxury condos, and client representation. Her clients value her professionalism, deep integrity, and knowledge of transaction logistics.",
+    bio: "Sarah Williams is a senior advisor at waveron Agency. She focuses on premium residential sales, luxury condos, and client representation. Her clients value her professionalism, deep integrity, and knowledge of transaction logistics.",
   },
   {
     id: "AGT-005",
     name: "Michael Chen",
-    email: "m.chen@lahomes.com",
+    email: "m.chen@waveron.com",
     phone: "+1 (555) 987-6543",
     properties: 18,
     status: "Active",
@@ -152,7 +152,7 @@ export const agents: Agent[] = [
     avatar: "/assets/images/users/avatar-1.jpg",
     address: "Woodside Circle Panama City, FL 32401",
     experience: "6 Year",
-    agency: "LaHomes Agency",
+    agency: "waveron Agency",
     license: "LC-8849-1092-2938",
     textNumber: "TC-2938-PC-88347",
     servicesArea: "Panama City Metro",
@@ -164,14 +164,14 @@ export const agents: Agent[] = [
       instagram: "https://instagram.com",
       twitter: "https://twitter.com",
       whatsapp: "https://wa.me",
-      email: "mailto:m.chen@lahomes.com",
+      email: "mailto:m.chen@waveron.com",
     },
     bio: "Michael Chen combines a commercial business background with residential real estate experience. Specializing in investment portfolios, dual-income properties, and commercial office sales, Michael works diligently to maximize investment return for buyers and sellers.",
   },
   {
     id: "AGT-006",
     name: "Jessica Davis",
-    email: "j.davis@lahomes.com",
+    email: "j.davis@waveron.com",
     phone: "+1 (555) 456-7890",
     properties: 12,
     status: "On Leave",
@@ -180,7 +180,7 @@ export const agents: Agent[] = [
     avatar: "/assets/images/users/avatar-6.jpg",
     address: "Boulevard Cockeysville TX 75204",
     experience: "1 Year",
-    agency: "LaHomes Agency",
+    agency: "waveron Agency",
     license: "LC-9938-2938-1928",
     textNumber: "TC-8834-PC-29384",
     servicesArea: "Cockeysville Metro",
@@ -192,8 +192,8 @@ export const agents: Agent[] = [
       instagram: "https://instagram.com",
       twitter: "https://twitter.com",
       whatsapp: "https://wa.me",
-      email: "mailto:j.davis@lahomes.com",
+      email: "mailto:j.davis@waveron.com",
     },
-    bio: "Jessica Davis has been working in customer relations and property marketing since joining LaHomes. While currently on temporary leave, she continues to provide strategic listing support and market study analytics for the team.",
+    bio: "Jessica Davis has been working in customer relations and property marketing since joining waveron. While currently on temporary leave, she continues to provide strategic listing support and market study analytics for the team.",
   },
 ];

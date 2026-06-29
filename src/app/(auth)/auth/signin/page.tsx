@@ -1,9 +1,9 @@
-import { Metadata } from "next";
+﻿import { Metadata } from "next";
 import Link from "next/link";
 import { Building2 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Sign In | Lahomes",
+  title: "Sign In | waveron",
 };
 
 export default function SignInPage() {
@@ -15,12 +15,12 @@ export default function SignInPage() {
             <div className="h-10 w-10 bg-primary rounded flex items-center justify-center">
               <Building2 className="text-primary-foreground h-6 w-6" />
             </div>
-            <span className="text-2xl font-bold text-foreground tracking-tight">Lahomes</span>
+            <span className="text-2xl font-bold text-foreground tracking-tight">waveron</span>
           </Link>
         </div>
         
         <h2 className="text-center text-xl font-semibold text-foreground mb-2">Welcome Back!</h2>
-        <p className="text-center text-sm text-muted-foreground mb-8">Sign in to continue to Lahomes.</p>
+        <p className="text-center text-sm text-muted-foreground mb-8">Sign in to continue to waveron.</p>
 
         <form className="space-y-4">
           <div>

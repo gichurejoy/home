@@ -51,17 +51,30 @@ const initialNotifications = [
 ];
 
 export function Topbar() {
-  const { toggleSidebar, setSettingsOpen, topbarColor } = useAppStore();
+  const { toggleSidebar, setSettingsOpen, topbarColor, sessionRole, setSessionRole, usersList } = useAppStore();
   const searchOpen = useSearchStore((state) => state.open);
   
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [notifs, setNotifs] = useState(initialNotifications);
   const { theme, setTheme } = useTheme();
+
+  const currentUser = usersList.find((u) => u.role === sessionRole) || {
+    name: "Dominic Keller",
+    role: "Super Admin" as const,
+    avatar: "/assets/images/users/avatar-2.jpg",
+  };
+  const initials = currentUser.name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .substring(0, 2);
   
   const [mounted, setMounted] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const roleRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTimeout(() => setMounted(true), 0);
@@ -72,6 +85,7 @@ export function Topbar() {
     function handleClick(e: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+      if (roleRef.current && !roleRef.current.contains(e.target as Node)) setRoleDropdownOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -242,6 +256,45 @@ export function Topbar() {
             )}
           </div>
 
+          {/* Session Role Switcher */}
+          <div className="relative" ref={roleRef}>
+            <button
+              onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
+              className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-full text-[11px] font-extrabold transition-all"
+              title="Active User Session Role (Click to switch)"
+            >
+              <i className="ri-shield-user-line text-[13px]" />
+              {sessionRole}
+              <i className="ri-arrow-down-s-line text-[12px]" />
+            </button>
+            
+            {roleDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-44 rounded-lg border border-border bg-card shadow-[0_0_35px_rgba(154,161,171,0.25)] py-1.5 z-50">
+                <div className="px-3 py-1 border-b border-border mb-1">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Session Role</span>
+                </div>
+                {(["Super Admin", "Broker", "Agent", "Viewer"] as const).map(role => (
+                  <button
+                    key={role}
+                    onClick={() => {
+                      setSessionRole(role);
+                      setRoleDropdownOpen(false);
+                      toast.success(`Active role switched to: ${role}`);
+                    }}
+                    className={`w-full text-left px-3 py-1.5 text-[12px] transition-colors flex items-center justify-between font-bold ${
+                      sessionRole === role 
+                        ? 'text-primary bg-primary/5' 
+                        : 'text-foreground hover:bg-muted/50'
+                    }`}
+                  >
+                    {role}
+                    {sessionRole === role && <i className="ri-checkbox-circle-fill text-primary text-[14px]" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Settings */}
           <button
             type="button"
@@ -265,13 +318,13 @@ export function Topbar() {
             >
               <div className="h-9 w-9 rounded-full overflow-hidden bg-primary/20 border-2 border-primary/30 flex-shrink-0">
                 {/* Colored initials avatar */}
-                <div className="h-full w-full flex items-center justify-center bg-[#604ae3] text-white text-[14px] font-bold">
-                  D
+                <div className="h-full w-full flex items-center justify-center bg-[#604ae3] text-white text-[13px] font-bold">
+                  {initials}
                 </div>
               </div>
               <div className="hidden sm:block text-left">
-                <p className="text-[13px] font-semibold text-foreground leading-none">Dominic</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Admin</p>
+                <p className="text-[13px] font-semibold text-foreground leading-none">{currentUser.name}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{currentUser.role}</p>
               </div>
               <i className="ri-arrow-down-s-line text-[16px] text-muted-foreground hidden sm:block" />
             </button>
@@ -279,8 +332,8 @@ export function Topbar() {
             {profileOpen && (
               <div className="absolute right-0 mt-2 w-[200px] rounded-lg border border-border bg-card shadow-[0_0_35px_rgba(154,161,171,0.25)] py-2 z-50">
                 <div className="px-4 py-2 border-b border-border mb-1">
-                  <p className="text-[13px] font-semibold text-foreground">Dominic Keller</p>
-                  <p className="text-[11px] text-muted-foreground">Admin</p>
+                  <p className="text-[13px] font-semibold text-foreground">{currentUser.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{currentUser.role}</p>
                 </div>
                 <Link
                   href="/profile"

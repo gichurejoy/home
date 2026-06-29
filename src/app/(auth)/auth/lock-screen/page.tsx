@@ -1,9 +1,9 @@
-import { Metadata } from "next";
+﻿import { Metadata } from "next";
 import Link from "next/link";
 import { User } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Lock Screen | Lahomes",
+  title: "Lock Screen | waveron",
 };
 
 export default function LockScreenPage() {

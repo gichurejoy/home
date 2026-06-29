@@ -71,8 +71,10 @@ const navigation: { section: string; items: NavItem[] }[] = [
         children: [
           { title: "Ledger List", href: "/transactions" },
           { title: "Deals Pipeline", href: "/transactions/pipeline" },
+          { title: "Commissions Split", href: "/transactions/commissions" },
         ],
       },
+      { title: "Reports", href: "/reports", icon: "ri-file-chart-line" },
       { title: "Reviews", href: "/reviews", icon: "ri-chat-quote-line" },
       { title: "Chats", href: "/chats", icon: "ri-discuss-line" },
       { title: "Inbox", href: "/inbox", icon: "ri-mail-line" },
@@ -98,6 +100,8 @@ const navigation: { section: string; items: NavItem[] }[] = [
           { title: "Calendar", href: "/calendar" },
           { title: "FAQs", href: "/pages/faqs" },
           { title: "Pricing", href: "/pages/pricing" },
+          { title: "User Roles Matrix", href: "/settings/rbac" },
+          { title: "Security Audit Logs", href: "/settings/audit-logs" },
         ],
       },
       {
@@ -115,7 +119,14 @@ const navigation: { section: string; items: NavItem[] }[] = [
 ];
 
 export function Sidebar() {
-  const { sidebarOpen, setSidebarOpen, menuColor, agencyName } = useAppStore();
+  const { sidebarOpen, setSidebarOpen, menuColor, agencyName, sessionRole, usersList } = useAppStore();
+  const currentUser = usersList.find(u => u.role === sessionRole) || {
+    name: "Dominic Keller",
+    role: "Super Admin" as const,
+    avatar: "/assets/images/users/avatar-2.jpg"
+  };
+  const initials = currentUser.name.split(" ").map(n => n[0]).join("").substring(0, 2);
+
   const pathname = usePathname();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
     Dashboards: true,
@@ -284,11 +295,11 @@ export function Sidebar() {
         <div className="px-4 py-3 border-t border-white/5 sidebar-bottom-user">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-full bg-[#604ae3] flex items-center justify-center text-white text-[13px] font-bold shrink-0">
-              D
+              {initials}
             </div>
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-white truncate">Dominic Keller</p>
-              <p className="text-[11px] text-[var(--sidebar-text)]">Admin</p>
+              <p className="text-[13px] font-semibold text-white truncate">{currentUser.name}</p>
+              <p className="text-[11px] text-[var(--sidebar-text)]">{currentUser.role}</p>
             </div>
             <Link href="/auth/signin" className="ml-auto text-[var(--sidebar-text)] hover:text-white transition-colors">
               <i className="ri-logout-box-r-line text-[18px]" />

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
@@ -131,7 +131,7 @@ export default function DashboardClient() {
       color: "#f1b53d",
       rating: 5,
       comment:
-        "Outstanding service from start to finish. The Lahomes team made the whole experience stress-free.",
+        "Outstanding service from start to finish. The waveron team made the whole experience stress-free.",
       property: "Greenleaf Villas",
       date: "May 15, 2026",
     },

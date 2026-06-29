@@ -14,7 +14,7 @@ export function DocumentManager({ entityId }: DocumentManagerProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileName, setFileName] = useState("");
-  const [category, setCategory] = useState<'Contract' | 'Disclosure' | 'Image' | 'Other'>('Contract');
+  const [category, setCategory] = useState<'Contract' | 'Disclosure' | 'Image' | 'Blueprint' | 'Other'>('Contract');
 
   const entityDocs = documents.filter(d => d.entityId === entityId);
 
@@ -64,6 +64,7 @@ export function DocumentManager({ entityId }: DocumentManagerProps) {
       case "Contract": return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
       case "Disclosure": return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
       case "Image": return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+      case "Blueprint": return "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20";
       default: return "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20";
     }
   };
@@ -81,12 +82,13 @@ export function DocumentManager({ entityId }: DocumentManagerProps) {
           <span className="text-[11px] font-bold text-muted-foreground uppercase">Upload Category:</span>
           <select
             value={category}
-            onChange={(e) => setCategory(e.target.value as 'Contract' | 'Disclosure' | 'Image' | 'Other')}
+            onChange={(e) => setCategory(e.target.value as 'Contract' | 'Disclosure' | 'Image' | 'Blueprint' | 'Other')}
             className="text-[12px] border border-border bg-muted/20 text-foreground rounded px-2 py-1 outline-none font-bold"
           >
             <option value="Contract">Contract</option>
             <option value="Disclosure">Disclosure</option>
             <option value="Image">Image / Gallery</option>
+            <option value="Blueprint">CAD Blueprint</option>
             <option value="Other">Other</option>
           </select>
         </div>
