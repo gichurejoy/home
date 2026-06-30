@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -316,15 +316,15 @@
 }
 
 /* Force dark backgrounds in dark mode to prevent any white layout gaps */
-.dark body,
-.dark .bg-background {
+.dark body:not(.theme-light-forced),
+.dark .bg-background:not(.theme-light-forced) {
   background-color: #101726 !important;
 }
 
 /* Force dark header/topbar in dark mode */
-.dark header,
-.dark .topbar-wrapper,
-.dark header.bg-card {
+.dark header:not(.theme-light-forced),
+.dark .topbar-wrapper:not(.theme-light-forced),
+.dark header.bg-card:not(.theme-light-forced) {
   background-color: #1b2332 !important;
   border-bottom-color: #2b3547 !important;
 }

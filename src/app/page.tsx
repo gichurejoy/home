@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Folder, BriefcaseBusiness, CheckCircle2, Blend, ShieldCheck, Upload,
@@ -16,6 +16,13 @@ export default function AtelierLandingPage() {
   const [activeHeroStyle, setActiveHeroStyle] = useState<'luxe' | 'japandi' | 'organic' | 'minimal'>('luxe');
   const [activeIntelStyle, setActiveIntelStyle] = useState<'luxe' | 'japandi' | 'organic' | 'minimal'>('luxe');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
+
+  useEffect(() => {
+    document.body.classList.add("theme-light-forced");
+    return () => {
+      document.body.classList.remove("theme-light-forced");
+    };
+  }, []);
 
   const handleMove = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (e.type === 'mousemove' && (e as React.MouseEvent).buttons !== 1) return;
