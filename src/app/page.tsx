@@ -18,8 +18,19 @@ export default function AtelierLandingPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
 
   useEffect(() => {
+    const htmlElement = document.documentElement;
+    const wasDark = htmlElement.classList.contains("dark");
+    
+    if (wasDark) {
+      htmlElement.classList.remove("dark");
+    }
+    
     document.body.classList.add("theme-light-forced");
+
     return () => {
+      if (wasDark) {
+        htmlElement.classList.add("dark");
+      }
       document.body.classList.remove("theme-light-forced");
     };
   }, []);
